@@ -29,4 +29,8 @@ int mpmc_ring_put_start(struct mpmc_ring *ring);
 
 int mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);
 
+int mpmc_ring_get_start(struct mpmc_ring *ring);
+
+int mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);
+
 #endif /* _MPMC_RING_H_ */
