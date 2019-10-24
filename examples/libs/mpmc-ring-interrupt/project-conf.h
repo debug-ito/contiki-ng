@@ -72,4 +72,10 @@
  */
 #define USE_RINGBUFINDEX 0
 
+/*---------------------------------------------------------------------------*/
+
+/* bootloader settings specific to simplelink CPUs */
+#define CCFG_CONF_ROM_BOOTLOADER_ENABLE 1
+#define CCFG_CONF_BL_PIN_NUMBER 9
+
 #endif /* PROJECT_CONF_H_ */
