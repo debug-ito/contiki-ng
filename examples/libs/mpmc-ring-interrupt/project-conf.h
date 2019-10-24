@@ -33,17 +33,17 @@
 /*
  * Number of messages that the normal producer puts.
  */
-#define NORMAL_PUT_NUM 3000
+#define NORMAL_PUT_NUM 2000
 
 /*
  * Number of messages that the interrupt producer puts.
  */
-#define INTERRUPT_PUT_NUM 3000
+#define INTERRUPT_PUT_NUM 2000
 
 /*
  * Number of messages that the normal consumer gets.
  */
-#define NORMAL_GET_NUM 3000
+#define NORMAL_GET_NUM 2000
 
 /*
  * Number of messages that the interrupt consumer gets.
