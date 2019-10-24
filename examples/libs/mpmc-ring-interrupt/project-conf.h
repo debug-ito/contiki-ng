@@ -1,0 +1,75 @@
+#ifndef PROJECT_CONF_H_
+#define PROJECT_CONF_H_
+
+/*---------------------------------------------------------------------------*/
+
+/*
+ * The consumers start when the number of elements in the queue
+ * reaches this value.
+ */
+#define START_GET_NUM 0
+
+/*
+ * A producer puts one item per `PUT_INTERVAL` attempts. That is, if
+ * you set it to a big value, the producer becomes slow to produce a
+ * new value. This parameter, together with `GET_INTERVAL`, can be
+ * useful to test the cases where the traffic volume is unbalanced
+ * between producers and consumers.
+ */
+#define PUT_INTERVAL 1
+
+/*
+ * Same as `PUT_INTERVAL` but for consumers.
+ */
+#define GET_INTERVAL 1
+
+/*
+ * Length of the message queue.
+ */
+#define QUEUE_LEN 64
+
+/*---------------------------------------------------------------------------*/
+
+/*
+ * Number of messages that the normal producer puts.
+ */
+#define NORMAL_PUT_NUM 3000
+
+/*
+ * Number of messages that the interrupt producer puts.
+ */
+#define INTERRUPT_PUT_NUM 3000
+
+/*
+ * Number of messages that the normal consumer gets.
+ */
+#define NORMAL_GET_NUM 3000
+
+/*
+ * Number of messages that the interrupt consumer gets.
+ */
+#define INTERRUPT_GET_NUM ((NORMAL_PUT_NUM) + (INTERRUPT_PUT_NUM) - (NORMAL_GET_NUM))
+
+/*---------------------------------------------------------------------------*/
+
+/*
+ * Time interval of interrupts
+ */
+#define INTERRUPT_RTIMER_INTERVAL (US_TO_RTIMERTICKS(13))
+
+/*
+ * Extra delay for moving one message.
+ *
+ * The higher this value is, the more often that preemption between
+ * queue operations happens.
+ */
+#define MOVE_WAIT_COUNT 100
+
+/*
+ * If non-zero, use ringbufindex instead of mpmc-ring for queue
+ * implementation. This is to demonstrate danger of using
+ * ringbufindex in multi-producer multi-consumer scenarios.
+ */
+#define USE_RINGBUFINDEX 0
+
+#endif /* PROJECT_CONF_H_ */
