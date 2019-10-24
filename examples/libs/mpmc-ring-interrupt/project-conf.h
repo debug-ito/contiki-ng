@@ -55,7 +55,7 @@
 /*
  * Time interval of interrupts
  */
-#define INTERRUPT_RTIMER_INTERVAL (US_TO_RTIMERTICKS(13))
+#define INTERRUPT_RTIMER_INTERVAL (US_TO_RTIMERTICKS(53))
 
 /*
  * Extra delay for moving one message.
@@ -63,7 +63,7 @@
  * The higher this value is, the more often that preemption between
  * queue operations happens.
  */
-#define MOVE_WAIT_COUNT 100
+#define MOVE_WAIT_COUNT 400
 
 /*
  * If non-zero, use ringbufindex instead of mpmc-ring for queue
