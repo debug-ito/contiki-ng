@@ -72,6 +72,12 @@
  */
 #define USE_RINGBUFINDEX 0
 
+/*
+ * If non-zero, it prints log messages in the callback for rtimer,
+ * that is, in an interrupt context.
+ */
+#define ENABLE_LOG_IN_RTIMER 0
+
 /*---------------------------------------------------------------------------*/
 
 /* bootloader settings specific to simplelink CPUs */

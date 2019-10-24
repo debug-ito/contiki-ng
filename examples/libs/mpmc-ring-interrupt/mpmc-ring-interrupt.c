@@ -52,6 +52,17 @@
 #endif /* CONTIKI_TARGET_NP108 */
 
 /*---------------------------------------------------------------------------*/
+
+#if ENABLE_LOG_IN_RTIMER
+#define RLOG_DBG(...) LOG_DBG(__VA_ARGS__)
+#define RLOG_INFO(...) LOG_INFO(__VA_ARGS__)
+#else /* ENABLE_LOG_IN_RTIMER */
+#define RLOG_DBG(...)
+#define RLOG_INFO(...)
+#endif /* ENABLE_LOG_IN_RTIMER */
+
+
+/*---------------------------------------------------------------------------*/
 #if USE_RINGBUFINDEX
 typedef struct ringbufindex the_queue_t;
 #else /* USE_RINGBUFINDEX */
@@ -351,21 +362,21 @@ task_rtimer(struct rtimer *rt, void *data)
   if(do_put_in_rtimer) {
     if(interrupt_put_gen.generated_num < INTERRUPT_PUT_NUM) {
       if(stream_control_try(&sc_interrupt_put) && do_put(&interrupt_put_gen)) {
-        LOG_DBG("Interrupt put\n");
+        RLOG_DBG("Interrupt put\n");
       }
       if(interrupt_put_gen.generated_num == INTERRUPT_PUT_NUM) {
         stream_control_finish(&sc_interrupt_put);
-        LOG_INFO("Interrupt put done\n");
+        RLOG_INFO("Interrupt put done\n");
       }
     }
   } else if(enable_get) {
     if(interrupt_store.current_num < INTERRUPT_GET_NUM) {
       if(stream_control_try(&sc_interrupt_get) && do_get(&interrupt_store)) {
-        LOG_DBG("Interrupt get\n");
+        RLOG_DBG("Interrupt get\n");
       }
       if(interrupt_store.current_num == INTERRUPT_GET_NUM) {
         stream_control_finish(&sc_interrupt_get);
-        LOG_INFO("Interrupt get done\n");
+        RLOG_INFO("Interrupt get done\n");
       }
     }
   }
@@ -374,7 +385,7 @@ task_rtimer(struct rtimer *rt, void *data)
      || !stream_control_is_finished(&sc_interrupt_get)) {
     schedule_rtimer();
   } else {
-    LOG_INFO("Finished rtimer\n");
+    RLOG_INFO("Finished rtimer\n");
   }
 }
 /*---------------------------------------------------------------------------*/
