@@ -64,6 +64,10 @@
 
 
 /*---------------------------------------------------------------------------*/
+/*
+ * Abstraction of the queue
+ */
+
 #if USE_RINGBUFINDEX
 typedef struct ringbufindex the_queue_t;
 #else /* USE_RINGBUFINDEX */
@@ -119,16 +123,6 @@ void msg_move(msg_t *dest, const msg_t *source)
 }
 
 /*---------------------------------------------------------------------------*/
-
-static msg_t queue[QUEUE_LEN];
-#if USE_RINGBUFINDEX
-static struct ringbufindex queue_r;
-#else /* USE_RINGBUFINDEX */
-MPMC_RING(queue_r, QUEUE_LEN);
-#endif /* USE_RINGBUFINDEX */
-
-/*---------------------------------------------------------------------------*/
-
 #define DEBUG_DUMP 0
 
 #if !USE_RINGBUFINDEX && DEBUG_DUMP
@@ -206,6 +200,9 @@ dump_mpmc_ring(const struct mpmc_ring *ring)
 
 
 /*---------------------------------------------------------------------------*/
+/**
+ * A producer of the queue. It generates messages sequentially.
+ */
 struct message_gen {
   msg_t next;
   uint32_t generated_num;
@@ -229,6 +226,10 @@ message_gen_next(struct message_gen *gen)
   return n;
 }
 /*---------------------------------------------------------------------------*/
+/**
+ * A consumer of the queue. It stores messages obtained from the
+ * queue.
+ */
 struct message_store {
   msg_t *storage;
   uint32_t current_num;
@@ -251,42 +252,11 @@ message_store_input(struct message_store *store, const msg_t *val)
 }
 
 /*---------------------------------------------------------------------------*/
-
-#define MESSAGE_POOL_SIZE (NORMAL_GET_NUM + INTERRUPT_GET_NUM)
-static msg_t message_pool[MESSAGE_POOL_SIZE];
-
-static struct message_store normal_store;
-static struct message_store interrupt_store;
-
-/*---------------------------------------------------------------------------*/
-
-static inline
-int do_put(struct message_gen *gen)
-{
-  int i = the_queue_put_start(&queue_r);
-  msg_t next;
-  if(i < 0) {
-    gen->count_queue_full++;
-    return 0;
-  }
-  next = message_gen_next(gen);
-  msg_move(&queue[i], &next);
-  return the_queue_put_commit(&queue_r, i);
-}
-
-static inline
-int do_get(struct message_store *store)
-{
-  int i = the_queue_get_start(&queue_r);
-  if(i < 0) {
-    store->count_queue_drain++;
-    return 0;
-  }
-  message_store_input(store, &queue[i]);
-  return the_queue_get_commit(&queue_r, i);
-}
-
-/*---------------------------------------------------------------------------*/
+/**
+ * Controller of a producer or consumer. it regulates the speed of
+ * the message stream, and keeps track of the time when the stream
+ * started and finished.
+ */
 struct stream_control {
   int finished;
   int try_counter;
@@ -305,6 +275,10 @@ stream_control_init(volatile struct stream_control *sc, int finished, int try_in
   sc->finish_time = 0;
 }
 
+/**
+ * \return Non-zero if a producer or consumer can process a
+ * message. Zero otherwise.
+ */
 static int
 stream_control_try(volatile struct stream_control *sc)
 {
@@ -332,14 +306,104 @@ stream_control_duration(volatile struct stream_control *sc)
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * The memory region for messages in the queue.
+ */
+static msg_t queue[QUEUE_LEN];
+#if USE_RINGBUFINDEX
+static struct ringbufindex queue_r;
+#else /* USE_RINGBUFINDEX */
+MPMC_RING(queue_r, QUEUE_LEN);
+#endif /* USE_RINGBUFINDEX */
+
+#define MESSAGE_POOL_SIZE (NORMAL_GET_NUM + INTERRUPT_GET_NUM)
+
+/**
+ * The memory region to store messages obtained from the queue. It's
+ * divided into two, and assigned to nornal_store and
+ * interrupt_store.
+ */
+static msg_t message_pool[MESSAGE_POOL_SIZE];
+
+/**
+ * The consumer in normal context.
+ */
+static struct message_store normal_store;
+
+/**
+ * The consumer in interrupt context.
+ */
+static struct message_store interrupt_store;
+
+/**
+ * The producer in normal context.
+ */
 static struct message_gen normal_put_gen;
+
+/**
+ * The producer in interrupt context.
+ */
 static struct message_gen interrupt_put_gen;
+
+/**
+ * Controls the role of task_rtimer. If non-zero, task_rtimer puts
+ * a message. Otherwise it gets a message.
+ */
 static int do_put_in_rtimer;
+
+/**
+ * Controls the start time of the consumers. If non-zero, the
+ * consumers work.
+ */
 static int enable_get;
+
+/* stream controllers for the producers and consumers */
 static volatile struct stream_control sc_normal_put;
 static volatile struct stream_control sc_normal_get;
 static volatile struct stream_control sc_interrupt_put;
 static volatile struct stream_control sc_interrupt_get;
+
+/*---------------------------------------------------------------------------*/
+/**
+ * Put a message from the producer to the queue. If the queue is
+ * full, it does nothing.
+ *
+ * \return Non-zero if it successfully puts a message. Zero
+ * otherwise.
+ */
+static inline
+int do_put(struct message_gen *gen)
+{
+  int i = the_queue_put_start(&queue_r);
+  msg_t next;
+  if(i < 0) {
+    gen->count_queue_full++;
+    return 0;
+  }
+  next = message_gen_next(gen);
+  msg_move(&queue[i], &next);
+  return the_queue_put_commit(&queue_r, i);
+}
+
+/**
+ * Get a message from the queue to the consumer. If the queue is
+ * empty, it does nothing.
+ *
+ * \return Non-zero if it successfully gets a message. Zero
+ * otherwise.
+ */
+static inline
+int do_get(struct message_store *store)
+{
+  int i = the_queue_get_start(&queue_r);
+  if(i < 0) {
+    store->count_queue_drain++;
+    return 0;
+  }
+  message_store_input(store, &queue[i]);
+  return the_queue_get_commit(&queue_r, i);
+}
+/*---------------------------------------------------------------------------*/
 
 static void task_rtimer(struct rtimer *rt, void *data);
 
@@ -412,6 +476,11 @@ message_comparator(const void *a, const void *b)
     : 0;
 }
 
+/**
+ * Verify the test result.
+ *
+ * \return Non-zero if it's ok. Zero otherwise.
+ */
 static int
 check_result(void)
 {
