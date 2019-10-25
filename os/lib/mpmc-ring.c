@@ -102,8 +102,7 @@ mpmc_ring_put_begin(struct mpmc_ring *ring)
   for(tmp_put = ring->put_ptr;
       !is_full(tmp_put, now_get, ring->mask);
       tmp_put = next(tmp_put, ring->mask)) {
-    if(ring->state[tmp_put] == MPMC_RING_EMPTY &&
-       atomic_cas_uint8(&ring->state[tmp_put], MPMC_RING_EMPTY, MPMC_RING_PUTTING)) {
+    if(atomic_cas_uint8(&ring->state[tmp_put], MPMC_RING_EMPTY, MPMC_RING_PUTTING)) {
       return tmp_put;
     }
   }
@@ -136,8 +135,7 @@ mpmc_ring_get_begin(struct mpmc_ring *ring)
   for(tmp_get = ring->get_ptr;
       !is_empty(now_put, tmp_get, ring->mask);
       tmp_get = next(tmp_get, ring->mask)) {
-    if(ring->state[tmp_get] == MPMC_RING_OCCUPIED &&
-       atomic_cas_uint8(&ring->state[tmp_get], MPMC_RING_OCCUPIED, MPMC_RING_GETTING)) {
+    if(atomic_cas_uint8(&ring->state[tmp_get], MPMC_RING_OCCUPIED, MPMC_RING_GETTING)) {
       return tmp_get;
     }
   }
