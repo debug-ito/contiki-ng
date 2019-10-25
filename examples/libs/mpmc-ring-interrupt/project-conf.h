@@ -48,7 +48,11 @@
 /*
  * Number of messages that the interrupt consumer gets.
  */
-#define INTERRUPT_GET_NUM ((NORMAL_PUT_NUM) + (INTERRUPT_PUT_NUM) - (NORMAL_GET_NUM))
+#define INTERRUPT_GET_NUM 2000
+
+#if NORMAL_PUT_NUM + INTERRUPT_PUT_NUM != NORMAL_GET_NUM + INTERRUPT_GET_NUM
+#error Total of PUT_NUM must be equal to the total of GET_NUM
+#endif /* NORMAL_PUT_NUM + INTERRUPT_PUT_NUM != NORMAL_GET_NUM + INTERRUPT_GET_NUM */
 
 /*---------------------------------------------------------------------------*/
 
