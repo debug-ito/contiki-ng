@@ -291,6 +291,8 @@ struct stream_control {
   int finished;
   int try_counter;
   int try_interval;
+  clock_time_t start_time;
+  clock_time_t finish_time;
 };
 
 static void
@@ -299,6 +301,8 @@ stream_control_init(volatile struct stream_control *sc, int finished, int try_in
   sc->finished = finished;
   sc->try_counter = 0;
   sc->try_interval = try_interval;
+  sc->start_time = clock_time();
+  sc->finish_time = 0;
 }
 
 static int
@@ -308,16 +312,23 @@ stream_control_try(volatile struct stream_control *sc)
   return (sc->try_counter % sc->try_interval == 0);
 }
 
-static inline void
+static void
 stream_control_finish(volatile struct stream_control *sc)
 {
   sc->finished = 1;
+  sc->finish_time = clock_time();
 }
 
 static inline int
 stream_control_is_finished(volatile struct stream_control *sc)
 {
   return sc->finished;
+}
+
+static inline clock_time_t
+stream_control_duration(volatile struct stream_control *sc)
+{
+  return sc->finish_time - sc->start_time;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -441,6 +452,8 @@ check_result(void)
   LOG_INFO("Put num: normal:%lu interrupt:%lu\n", normal_put_gen.generated_num, interrupt_put_gen.generated_num);
   LOG_INFO("Queue full:  normal:%lu interrupt:%lu\n", normal_put_gen.count_queue_full, interrupt_put_gen.count_queue_full);
   LOG_INFO("Queue drain: normal:%lu interrupt:%lu\n", normal_store.count_queue_drain, interrupt_store.count_queue_drain);
+  LOG_INFO("Get duration: normal:%ld interrupt:%ld\n", (int32_t)stream_control_duration(&sc_normal_get), (int32_t)stream_control_duration(&sc_interrupt_get));
+  LOG_INFO("Put duration: normal:%ld interrupt:%ld\n", (int32_t)stream_control_duration(&sc_normal_put), (int32_t)stream_control_duration(&sc_interrupt_put));
   return is_ok;
 }
 /*---------------------------------------------------------------------------*/
