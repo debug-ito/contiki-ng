@@ -4,13 +4,57 @@
 #include "mpmc-ring.h"
 
 /*----------------------------------------------------------------------------------------*/
-
+/**
+ * State of a slot in the queue. Stored in ring->state array.
+ */
 enum mpmc_ring_state {
-  MPMC_RING_EMPTY = 0,
-  MPMC_RING_PUTTING,
-  MPMC_RING_GETTING,
-  MPMC_RING_OCCUPIED,
+  MPMC_RING_EMPTY = 0, /**< The slot is empty. Transitions to PUTTING by put_start. */
+  MPMC_RING_PUTTING,   /**< A producer is writing to the slot right now. Transitions to OCCUPIED by put_commit. */
+  MPMC_RING_GETTING,   /**< A consumer is reading the slot right now. Transitions to EMPTY by get_commit. */
+  MPMC_RING_OCCUPIED,  /**< The slot is occupied. Transitions to GETTING by get_start. */
 };
+
+/*
+ * Internal of mpmc_ring
+ * 
+ * The figure below shows an example of the `state` array of
+ * mpmc_ring.
+ *
+ *      0 1 2 3 4 5 6 7 8 9 a b c d e f
+ *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *     |G|G|E|O|O|O|O|O|P|P|P|O|E|E|E|E|
+ *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *      ^               ^
+ *      get_ptr         put_ptr
+ *
+ * The state array is divided into two regions; the O region
+ * (get_ptr <= i < put_ptr) and the E region (put_ptr <= i < get_ptr).
+ * 
+ * Slots in the O region are basically OCCUPIED, can be GETTING or
+ * EMPTY temporarily but never PUTTING. Slots in the E region are
+ * basically EMPTY, can be PUTTING or OCCUPIED temporarily but never
+ * GETTING. If get_ptr == put_ptr, the whole queue is in E region
+ * and there is no O region.
+ *
+ * get_ptr points to the lowest GETTING slot if there is any GETTING
+ * slots in the queue. Otherwise, get_ptr points to the lowest
+ * OCCUPIED slot if there is any OCCUPIED slots in the
+ * queue. Otherwise, get_ptr must be equal to put_ptr.
+ *
+ * put_ptr points to the lowest PUTTING slot if there is any PUTTING
+ * slots in the queue. Otherwise, put_ptr points to the lowest EMPTY
+ * slot. Note that there is always at least one EMPTY slot in the
+ * queue. So, if get_ptr == put_ptr, this means the queue is
+ * (almost) empty.
+ *
+ * GETTING slots can transition to EMPTY in out-of-order
+ * fashion. For example, the slot 2 in the above figure must have
+ * transitioned to GETTING after slots 0 and 1 became GETTING. Then,
+ * the slot 2 transitioned to EMPTY before slots 0 and 1. After
+ * slots 0 and 1 both transition to EMPTY, get_ptr will move to slot
+ * 3. Similar discussion applies to PUTTING slots and put_ptr.
+ *
+ */
 
 /*----------------------------------------------------------------------------------------*/
 
