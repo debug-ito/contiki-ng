@@ -48,10 +48,6 @@
 #define LOG_MODULE "mpmc"
 #include "sys/log.h"
 
-#if CONTIKI_TARGET_NP108
-#include "services/np108/simplelink-hw-debug/simplelink-hw-debug.h"
-#endif /* CONTIKI_TARGET_NP108 */
-
 /*---------------------------------------------------------------------------*/
 
 #if ENABLE_LOG_IN_RTIMER
@@ -577,9 +573,6 @@ PROCESS_THREAD(main_process, ev, data)
   static int break_with_fail;
 
   PROCESS_BEGIN();
-#if CONTIKI_TARGET_NP108
-  simplelink_hw_debug_init();
-#endif /* CONTIKI_TARGET_NP108 */
   random_init(node_id);
   LOG_INFO("mpmc-ring-interrupt started.\n");
 
