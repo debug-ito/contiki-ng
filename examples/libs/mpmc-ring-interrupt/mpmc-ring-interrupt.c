@@ -37,6 +37,7 @@
 #include "lib/mpmc-ring.h"
 #include "lib/ringbufindex.h"
 #include "lib/random.h"
+#include "sys/timer.h"
 #include "sys/rtimer.h"
 #include "sys/etimer.h"
 #include "sys/clock.h"
@@ -489,7 +490,9 @@ AUTOSTART_PROCESSES(&main_process);
 PROCESS_THREAD(main_process, ev, data)
 {
   static struct etimer et_clean_up;
+  static struct timer test_timeout;
   static uint16_t run_count = 0;
+  static int break_with_fail;
 
   PROCESS_BEGIN();
 #if CONTIKI_TARGET_NP108
@@ -510,6 +513,9 @@ PROCESS_THREAD(main_process, ev, data)
     LOG_INFO("START_GET_NUM = %d\n", START_GET_NUM);
     LOG_INFO("USE_RINGBUFINDEX = %d\n", USE_RINGBUFINDEX);
     LOG_INFO("INTERRUPT_RTIMER_INTERVAL = %ld\n", INTERRUPT_RTIMER_INTERVAL);
+    LOG_INFO("TEST_TIMEOUT = %d\n", TEST_TIMEOUT);
+    break_with_fail = 0;
+    timer_set(&test_timeout, TEST_TIMEOUT * CLOCK_SECOND);
     init_states();
     schedule_rtimer();
     process_start(&normal_get, NULL);
@@ -518,6 +524,11 @@ PROCESS_THREAD(main_process, ev, data)
   
     while(1) {
       PROCESS_PAUSE();
+      if(timer_expired(&test_timeout)) {
+        break_with_fail = 1;
+        LOG_ERR("Test timeout.\n");
+        break;
+      }
       if(!enable_get && the_queue_elements(&queue_r) >= START_GET_NUM) {
         enable_get = 1;
       }
@@ -526,20 +537,13 @@ PROCESS_THREAD(main_process, ev, data)
           /* PUT and GET all finished. This is the normal end condition. */
           break;
         }
-        if(the_queue_elements(&queue_r) == 0) {
-          /* If the queue implementation has some bugs, it's possible
-           * that messages are drained even if the consumers are not
-           * finished yet.
-           */
-          LOG_ERR("All messages are drained, but consumers are not finished yet.\n");
-          break;
-        }
       } else if(stream_control_is_finished(&sc_interrupt_get) && stream_control_is_finished(&sc_normal_get)) {
+        break_with_fail = 1;
         LOG_ERR("Consumers finished, but producers are not finished yet.\n");
         break;
       }
     }
-    if(!check_result()) {
+    if(!check_result() || break_with_fail) {
 #if !USE_RINGBUFINDEX && DEBUG_DUMP
       dump_mpmc_ring(&queue_r);
 #endif /* !USE_RINGBUFINDEX && DEBUG_DUMP */

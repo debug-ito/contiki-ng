@@ -73,6 +73,12 @@
 #define USE_RINGBUFINDEX 0
 
 /*
+ * Timeout interval in seconds. If the test doesn't finish in this
+ * interval, it's considered as a failure.
+ */
+#define TEST_TIMEOUT 120
+
+/*
  * If non-zero, it prints log messages in the callback for rtimer,
  * that is, in an interrupt context.
  */
