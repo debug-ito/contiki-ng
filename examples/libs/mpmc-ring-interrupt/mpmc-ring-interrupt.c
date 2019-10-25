@@ -87,9 +87,9 @@ static inline int the_queue_elements(the_queue_t *q) { return ringbufindex_eleme
 #else /* USE_RINGBUFINDEX */
 static inline void the_queue_init(the_queue_t *q, int s) { mpmc_ring_init(q); }
 static inline int the_queue_put_start(the_queue_t *q) { return mpmc_ring_put_start(q); }
-static inline int the_queue_put_commit(the_queue_t *q, uint8_t i) { return mpmc_ring_put_commit(q,i); }
+static inline int the_queue_put_commit(the_queue_t *q, uint8_t i) { mpmc_ring_put_commit(q,i); return 1; }
 static inline int the_queue_get_start(the_queue_t *q) { return mpmc_ring_get_start(q); }
-static inline int the_queue_get_commit(the_queue_t *q, uint8_t i) { return mpmc_ring_get_commit(q,i); }
+static inline int the_queue_get_commit(the_queue_t *q, uint8_t i) { mpmc_ring_get_commit(q,i); return 1; }
 static inline int the_queue_elements(the_queue_t *q) { return mpmc_ring_elements(q); }
 #endif /* USE_RINGBUFINDEX */
 

@@ -105,9 +105,8 @@ int mpmc_ring_put_start(struct mpmc_ring *ring);
  * \param index The index obtained by the matching call to
  * mpmc_ring_put_start.
  *
- * \return Non-zero if successful. Zero otherwise.
  */
-int mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);
+void mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);
 
 /**
  * Start getting an element from the queue. Every call to
@@ -127,9 +126,8 @@ int mpmc_ring_get_start(struct mpmc_ring *ring);
  * \param index The index obtained by the matching call to
  * mpmc_ring_get_start.
  *
- * \return Non-zero if successful. Zero otherwise.
  */
-int mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);
+void mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);
 
 /**
  * \return Number of elements currently in the queue.

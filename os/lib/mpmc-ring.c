@@ -66,7 +66,7 @@ mpmc_ring_put_start(struct mpmc_ring *ring)
   return -1;
 }
 
-int
+void
 mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
 {
   mpmc_ring_index_t now_get;
@@ -80,7 +80,6 @@ mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
     mpmc_ring_index_t now_put = ring->put_ptr;
     atomic_cas_uint8(&ring->put_ptr, now_put, next(now_put, ring->mask));
   }
-  return 1;
 }
 
 int
@@ -101,7 +100,7 @@ mpmc_ring_get_start(struct mpmc_ring *ring)
   return -1;
 }
 
-int
+void
 mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
 {
   mpmc_ring_index_t now_put;
@@ -115,7 +114,6 @@ mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
     mpmc_ring_index_t now_get = ring->get_ptr;
     atomic_cas_uint8(&ring->get_ptr, now_get, next(now_get, ring->mask));
   }
-  return 1;
 }
 
 int
