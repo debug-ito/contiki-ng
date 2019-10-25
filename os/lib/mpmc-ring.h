@@ -89,7 +89,7 @@ void mpmc_ring_init(struct mpmc_ring *ring);
 
 /**
  * Start putting an element to the queue. Every call to
- * mpmc_ring_put_start must be finished by one and only call to
+ * mpmc_ring_put_begin must be finished by one and only call to
  * mpmc_ring_put_commit.
  *
  * \retval >=0 The index that the caller should use to put an
@@ -97,20 +97,20 @@ void mpmc_ring_init(struct mpmc_ring *ring);
  *
  * \retval <0 The queue is full. The caller cannot put an element.
  */
-int mpmc_ring_put_start(struct mpmc_ring *ring);
+int mpmc_ring_put_begin(struct mpmc_ring *ring);
 
 /**
  * Finish putting an element to the queue.
  *
  * \param index The index obtained by the matching call to
- * mpmc_ring_put_start.
+ * mpmc_ring_put_begin.
  *
  */
 void mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);
 
 /**
  * Start getting an element from the queue. Every call to
- * mpmc_ring_get_start must be finished by one and only call to
+ * mpmc_ring_get_begin must be finished by one and only call to
  * mpmc_ring_get_commit.
  *
  * \retval >=0 The index that the caller should use to get an
@@ -118,13 +118,13 @@ void mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);
  *
  * \retval <0 The queue is empty. The caller cannot get an element.
  */
-int mpmc_ring_get_start(struct mpmc_ring *ring);
+int mpmc_ring_get_begin(struct mpmc_ring *ring);
 
 /**
  * Finish getting an element to the queue.
  *
  * \param index The index obtained by the matching call to
- * mpmc_ring_get_start.
+ * mpmc_ring_get_begin.
  *
  */
 void mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);

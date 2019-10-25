@@ -8,10 +8,10 @@
  * State of a slot in the queue. Stored in ring->state array.
  */
 enum mpmc_ring_state {
-  MPMC_RING_EMPTY = 0, /**< The slot is empty. Transitions to PUTTING by put_start. */
+  MPMC_RING_EMPTY = 0, /**< The slot is empty. Transitions to PUTTING by put_begin. */
   MPMC_RING_PUTTING,   /**< A producer is writing to the slot right now. Transitions to OCCUPIED by put_commit. */
   MPMC_RING_GETTING,   /**< A consumer is reading the slot right now. Transitions to EMPTY by get_commit. */
-  MPMC_RING_OCCUPIED,  /**< The slot is occupied. Transitions to GETTING by get_start. */
+  MPMC_RING_OCCUPIED,  /**< The slot is occupied. Transitions to GETTING by get_begin. */
 };
 
 /*
@@ -93,7 +93,7 @@ mpmc_ring_init(struct mpmc_ring *ring)
 }
 
 int
-mpmc_ring_put_start(struct mpmc_ring *ring)
+mpmc_ring_put_begin(struct mpmc_ring *ring)
 {
   mpmc_ring_index_t tmp_put;
   mpmc_ring_index_t now_get;
@@ -127,7 +127,7 @@ mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
 }
 
 int
-mpmc_ring_get_start(struct mpmc_ring *ring)
+mpmc_ring_get_begin(struct mpmc_ring *ring)
 {
   mpmc_ring_index_t tmp_get;
   mpmc_ring_index_t now_put;

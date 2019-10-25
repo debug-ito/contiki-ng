@@ -71,24 +71,24 @@ typedef struct mpmc_ring the_queue_t;
 #endif /* USE_RINGBUFINDEX */
 
 static inline void the_queue_init(the_queue_t *q, int s);
-static inline int the_queue_put_start(the_queue_t *q);
+static inline int the_queue_put_begin(the_queue_t *q);
 static inline int the_queue_put_commit(the_queue_t *q, uint8_t i);
-static inline int the_queue_get_start(the_queue_t *q);
+static inline int the_queue_get_begin(the_queue_t *q);
 static inline int the_queue_get_commit(the_queue_t *q, uint8_t i);
 static inline int the_queue_elements(the_queue_t *q);
 
 #if USE_RINGBUFINDEX
 static inline void the_queue_init(the_queue_t *q, int s) { ringbufindex_init(q,(uint8_t)s); }
-static inline int the_queue_put_start(the_queue_t *q) { return ringbufindex_peek_put(q); }
+static inline int the_queue_put_begin(the_queue_t *q) { return ringbufindex_peek_put(q); }
 static inline int the_queue_put_commit(the_queue_t *q, uint8_t i) { return ringbufindex_put(q); }
-static inline int the_queue_get_start(the_queue_t *q) { return ringbufindex_peek_get(q); }    
+static inline int the_queue_get_begin(the_queue_t *q) { return ringbufindex_peek_get(q); }    
 static inline int the_queue_get_commit(the_queue_t *q, uint8_t i) { return (ringbufindex_get(q) >= 0); }
 static inline int the_queue_elements(the_queue_t *q) { return ringbufindex_elements(q); }
 #else /* USE_RINGBUFINDEX */
 static inline void the_queue_init(the_queue_t *q, int s) { mpmc_ring_init(q); }
-static inline int the_queue_put_start(the_queue_t *q) { return mpmc_ring_put_start(q); }
+static inline int the_queue_put_begin(the_queue_t *q) { return mpmc_ring_put_begin(q); }
 static inline int the_queue_put_commit(the_queue_t *q, uint8_t i) { mpmc_ring_put_commit(q,i); return 1; }
-static inline int the_queue_get_start(the_queue_t *q) { return mpmc_ring_get_start(q); }
+static inline int the_queue_get_begin(the_queue_t *q) { return mpmc_ring_get_begin(q); }
 static inline int the_queue_get_commit(the_queue_t *q, uint8_t i) { mpmc_ring_get_commit(q,i); return 1; }
 static inline int the_queue_elements(the_queue_t *q) { return mpmc_ring_elements(q); }
 #endif /* USE_RINGBUFINDEX */
@@ -370,7 +370,7 @@ static volatile struct stream_control sc_interrupt_get;
 static inline
 int do_put(struct message_gen *gen)
 {
-  int i = the_queue_put_start(&queue_r);
+  int i = the_queue_put_begin(&queue_r);
   msg_t next;
   if(i < 0) {
     gen->count_queue_full++;
@@ -391,7 +391,7 @@ int do_put(struct message_gen *gen)
 static inline
 int do_get(struct message_store *store)
 {
-  int i = the_queue_get_start(&queue_r);
+  int i = the_queue_get_begin(&queue_r);
   if(i < 0) {
     store->count_queue_drain++;
     return 0;
