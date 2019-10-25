@@ -35,6 +35,16 @@
  *         Header file for the ringbufindex library
  * \author
  *         Simon Duquennoy <simonduq@sics.se>
+ *
+ * ringbufindex is analogous to ringbuf, but it's for arbitrary data
+ * strucures. It manages indices to an array of the data structure
+ * in a ring-buffer fashion. That way, you can use the array as a
+ * queue.
+ *
+ * Note that ringbufindex only supports the single-producer,
+ * single-consumer scenario. If you have multiple producers or
+ * consumers (e.g. two functions running in normal and interrupt
+ * contexts put messages to the queue), use mpmc-ring instead.
  */
 
 #ifndef __RINGBUFINDEX_H__
