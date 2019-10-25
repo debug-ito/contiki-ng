@@ -1,3 +1,50 @@
+/*
+ * Copyright (c) 2019, Toshiba Corporation
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+ * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+/**
+ * \file
+ *         Multi-Producer Multi-Consumer lock-free ring buffer
+ * \author
+ *         Toshio Ito <toshio9.ito@toshiba.co.jp>
+ *
+ * mpmc-ring is analogous to ringbufindex, but it supports
+ * multi-producer, multi-consumer scenarios. To do that, mpmc-ring
+ * requires extra memory.
+ *
+ * mpmc-ring uses sys/atomic to arbitrate parallel accesses to the
+ * queue. If your platform implements sys/atomic by deferring
+ * interrupts, mpmc-queue also defers interrupts.
+ *
+ * To define and allocate a mpmc-ring object, use MPMC_RING macro.
+ */
+
 #ifndef _MPMC_RING_H_
 #define _MPMC_RING_H_
 
@@ -5,8 +52,17 @@
 #include "sys/atomic.h"
 #include "sys/cc.h"
 
+/**
+ * Index managed by a mpmc_ring.
+ */
 typedef uint8_t mpmc_ring_index_t;
 
+/**
+ * The multi-producer multi-consumer ring buffer.
+ *
+ * Do not declare and define struct mpmc_ring directly. Use
+ * MPMC_RING macro instead.
+ */
 struct mpmc_ring {
   mpmc_ring_index_t put_ptr;
   mpmc_ring_index_t get_ptr;
@@ -15,24 +71,74 @@ struct mpmc_ring {
 };
 
 /**
- * \param num Must be power of 2.
+ * Declare and define a mpmc_ring.
+ *
+ * \param name Variable name of the struct mpmc_ring.
+ *
+ * \param size Size of the array that keeps the queue elements. Must
+ * be power of 2.
  */
 #define MPMC_RING(name, size)                                           \
   static uint8_t CC_CONCAT(name,_state)[size];                          \
   static struct mpmc_ring name = { 0, 0, CC_CONCAT(name,_state), (size) - 1 };
 
+/**
+ * Initialize the mpmc_ring.
+ */
 void mpmc_ring_init(struct mpmc_ring *ring);
 
+/**
+ * Start putting an element to the queue. Every call to
+ * mpmc_ring_put_start must be finished by one and only call to
+ * mpmc_ring_put_commit.
+ *
+ * \retval >=0 The index that the caller should use to put an
+ * element.
+ *
+ * \retval <0 The queue is full. The caller cannot put an element.
+ */
 int mpmc_ring_put_start(struct mpmc_ring *ring);
 
+/**
+ * Finish putting an element to the queue.
+ *
+ * \param index The index obtained by the matching call to
+ * mpmc_ring_put_start.
+ *
+ * \return Non-zero if successful. Zero otherwise.
+ */
 int mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);
 
+/**
+ * Start getting an element from the queue. Every call to
+ * mpmc_ring_get_start must be finished by one and only call to
+ * mpmc_ring_get_commit.
+ *
+ * \retval >=0 The index that the caller should use to get an
+ * element.
+ *
+ * \retval <0 The queue is empty. The caller cannot get an element.
+ */
 int mpmc_ring_get_start(struct mpmc_ring *ring);
 
+/**
+ * Finish getting an element to the queue.
+ *
+ * \param index The index obtained by the matching call to
+ * mpmc_ring_get_start.
+ *
+ * \return Non-zero if successful. Zero otherwise.
+ */
 int mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index);
 
+/**
+ * \return Number of elements currently in the queue.
+ */
 int mpmc_ring_elements(const struct mpmc_ring *ring);
 
+/**
+ * \return Non-zero if the queue is empty. Zero otherwise.
+ */
 int mpmc_ring_empty(const struct mpmc_ring *ring);
 
 #endif /* _MPMC_RING_H_ */
