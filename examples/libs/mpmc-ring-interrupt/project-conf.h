@@ -70,6 +70,11 @@
 #define MOVE_WAIT_COUNT 400
 
 /*
+ * If set, it dumps internal of mpmc_ring when the test fails.
+ */
+#define DEBUG_DUMP 1
+
+/*
  * If non-zero, use ringbufindex instead of mpmc-ring for queue
  * implementation. This is to demonstrate danger of using
  * ringbufindex in multi-producer multi-consumer scenarios.

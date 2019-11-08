@@ -119,8 +119,6 @@ void msg_move(msg_t *dest, const msg_t *source)
 }
 
 /*---------------------------------------------------------------------------*/
-#define DEBUG_DUMP 0
-
 #if !USE_RINGBUFINDEX && DEBUG_DUMP
 static void
 dump_mpmc_ring(const struct mpmc_ring *ring)
