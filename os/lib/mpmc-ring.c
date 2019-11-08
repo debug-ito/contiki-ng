@@ -118,10 +118,13 @@ mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
   
   ring->state[index] = MPMC_RING_OCCUPIED;
   now_get = ring->get_ptr;
-  while(ring->state[ring->put_ptr] == MPMC_RING_OCCUPIED
-        && !is_full(ring->put_ptr, now_get, ring->mask)) {
-    mpmc_ring_index_t now_put = ring->put_ptr;
-    atomic_cas_uint8(&ring->put_ptr, now_put, next(now_put, ring->mask));
+  while(1) {
+    mpmc_ring_index_t tmp_put = ring->put_ptr;
+    if(ring->state[tmp_put] == MPMC_RING_OCCUPIED && !is_full(tmp_put, now_get, ring->mask)) {
+      atomic_cas_uint8(&ring->put_ptr, tmp_put, next(tmp_put, ring->mask));
+    } else {
+      break;
+    }
   }
 }
 
@@ -151,10 +154,13 @@ mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
   
   ring->state[index] = MPMC_RING_EMPTY;
   now_put = ring->put_ptr;
-  while(ring->state[ring->get_ptr] == MPMC_RING_EMPTY
-        && !is_empty(now_put, ring->get_ptr, ring->mask)) {
-    mpmc_ring_index_t now_get = ring->get_ptr;
-    atomic_cas_uint8(&ring->get_ptr, now_get, next(now_get, ring->mask));
+  while(1) {
+    mpmc_ring_index_t tmp_get = ring->get_ptr;
+    if(ring->state[tmp_get] == MPMC_RING_EMPTY && !is_empty(now_put, tmp_get, ring->mask)) {
+      atomic_cas_uint8(&ring->get_ptr, tmp_get, next(tmp_get, ring->mask));
+    } else {
+      break;
+    }
   }
 }
 
