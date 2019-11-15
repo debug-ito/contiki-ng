@@ -38,7 +38,8 @@ OBJDUMP_FLAGS += --disassemble --source --disassembler-options=force-thumb
 ### Are we building with code size optimisations?
 SMALL ?= 1
 ifeq ($(SMALL),1)
-  CFLAGS += -Os
+  ## CFLAGS += -Os
+  CFLAGS += -O0
 else
   CFLAGS += -O2
 endif
