@@ -1,5 +1,6 @@
 #include <string.h>
 #include "lib/assert.h"
+#include "sys/memory-barrier.h"
 
 #include "mpmc-ring.h"
 
@@ -99,9 +100,9 @@ mpmc_ring_put_begin(struct mpmc_ring *ring)
   mpmc_ring_index_t now_get;
   assert(ring != NULL);
   now_get = ring->get_ptr;
-  for(tmp_put = ring->put_ptr;
-      !is_full(tmp_put, now_get, ring->mask);
-      tmp_put = next(tmp_put, ring->mask)) {
+  tmp_put = ring->put_ptr;
+  memory_barrier();
+  for( ; !is_full(tmp_put, now_get, ring->mask); tmp_put = next(tmp_put, ring->mask)) {
     if(atomic_cas_uint8(&ring->state[tmp_put], MPMC_RING_EMPTY, MPMC_RING_PUTTING)) {
       return tmp_put;
     }
@@ -119,7 +120,9 @@ mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
   ring->state[index] = MPMC_RING_OCCUPIED;
   now_get = ring->get_ptr;
   while(1) {
-    mpmc_ring_index_t tmp_put = ring->put_ptr;
+    mpmc_ring_index_t tmp_put;
+    tmp_put = ring->put_ptr;
+    memory_barrier();
     if(ring->state[tmp_put] == MPMC_RING_OCCUPIED && !is_full(tmp_put, now_get, ring->mask)) {
       atomic_cas_uint8(&ring->put_ptr, tmp_put, next(tmp_put, ring->mask));
     } else {
@@ -135,9 +138,9 @@ mpmc_ring_get_begin(struct mpmc_ring *ring)
   mpmc_ring_index_t now_put;
   assert(ring != NULL);
   now_put = ring->put_ptr;
-  for(tmp_get = ring->get_ptr;
-      !is_empty(now_put, tmp_get, ring->mask);
-      tmp_get = next(tmp_get, ring->mask)) {
+  tmp_get = ring->get_ptr;
+  memory_barrier();
+  for( ; !is_empty(now_put, tmp_get, ring->mask); tmp_get = next(tmp_get, ring->mask)) {
     if(atomic_cas_uint8(&ring->state[tmp_get], MPMC_RING_OCCUPIED, MPMC_RING_GETTING)) {
       return tmp_get;
     }
@@ -155,7 +158,9 @@ mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
   ring->state[index] = MPMC_RING_EMPTY;
   now_put = ring->put_ptr;
   while(1) {
-    mpmc_ring_index_t tmp_get = ring->get_ptr;
+    mpmc_ring_index_t tmp_get;
+    tmp_get = ring->get_ptr;
+    memory_barrier();
     if(ring->state[tmp_get] == MPMC_RING_EMPTY && !is_empty(now_put, tmp_get, ring->mask)) {
       atomic_cas_uint8(&ring->get_ptr, tmp_get, next(tmp_get, ring->mask));
     } else {
