@@ -33,22 +33,22 @@
 /*
  * Number of messages that the normal producer puts.
  */
-#define NORMAL_PUT_NUM 2000
+#define NORMAL_PUT_NUM 3000
 
 /*
  * Number of messages that the interrupt producer puts.
  */
-#define INTERRUPT_PUT_NUM 2000
+#define INTERRUPT_PUT_NUM 1000
 
 /*
  * Number of messages that the normal consumer gets.
  */
-#define NORMAL_GET_NUM 2000
+#define NORMAL_GET_NUM 3000
 
 /*
  * Number of messages that the interrupt consumer gets.
  */
-#define INTERRUPT_GET_NUM 2000
+#define INTERRUPT_GET_NUM 1000
 
 #if NORMAL_PUT_NUM + INTERRUPT_PUT_NUM != NORMAL_GET_NUM + INTERRUPT_GET_NUM
 #error Total of PUT_NUM must be equal to the total of GET_NUM
@@ -93,5 +93,10 @@
  */
 #define ENABLE_LOG_IN_RTIMER 0
 
+
+
+/* bootloader settings specific to simplelink CPUs */
+#define CCFG_CONF_ROM_BOOTLOADER_ENABLE 1
+#define CCFG_CONF_BL_PIN_NUMBER 9
 
 #endif /* PROJECT_CONF_H_ */
