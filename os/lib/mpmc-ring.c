@@ -106,7 +106,6 @@ prev_trace_index(uint16_t index)
 void
 mpmc_ring_print_debug_trace(const struct mpmc_ring *ring)
 {
-  int_master_status_t s = critical_enter();
   uint16_t end = ring->debug_trace_next_put;
   uint16_t i;
   uint16_t n = 0;
@@ -115,7 +114,6 @@ mpmc_ring_print_debug_trace(const struct mpmc_ring *ring)
     if(e->event == MPMC_RING_TRACE_EVENT_UNDEFINED) break;
     printf("[MPMC RING TRACE] %5u event:%u target:%u\n", n, e->event, e->target);
   }
-  critical_exit(s);
 }
 #else /* MPMC_RING_DEBUG_TRACE_ENABLED */
 #define add_debug_trace(r,i,e)
