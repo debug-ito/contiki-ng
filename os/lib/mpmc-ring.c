@@ -103,6 +103,17 @@ prev_trace_index(uint16_t index)
   return index == 0 ? (MPMC_RING_DEBUG_TRACE_SIZE - 1) : (index - 1);
 }
 
+static const char *trace_event_desc[] =
+  {
+    "UNDEFINED",
+    "EMPTY_TO_PUTTING",
+    "PUTTING_TO_OCCUPIED",
+    "OCCUPIED_TO_GETTING",
+    "GETTING_TO_EMPTY",
+    "NEXT_PUT_PTR",
+    "NEXT_GET_PTR",
+  };
+
 void
 mpmc_ring_print_debug_trace(const struct mpmc_ring *ring)
 {
@@ -112,7 +123,8 @@ mpmc_ring_print_debug_trace(const struct mpmc_ring *ring)
   for(i = prev_trace_index(end) ; i != end ; i = prev_trace_index(i), n++) {
     const struct mpmc_ring_trace_entry *e = &ring->debug_trace[i];
     if(e->event == MPMC_RING_TRACE_EVENT_UNDEFINED) break;
-    printf("[MPMC RING TRACE] %5u event:%u target:%u\n", n, e->event, e->target);
+    printf("[MPMC_RING_TRACE] %5u target:%-3u event:%u(%s)\n",
+           n, e->target, e->event, trace_event_desc[e->event]);
   }
 }
 #else /* MPMC_RING_DEBUG_TRACE_ENABLED */
