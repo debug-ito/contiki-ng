@@ -619,10 +619,15 @@ PROCESS_THREAD(main_process, ev, data)
     if(!check_result() || break_with_fail) {
 #if !USE_RINGBUFINDEX && DEBUG_DUMP
       dump_mpmc_ring(&queue_r);
+      mpmc_ring_print_debug_trace(&queue_r);
 #endif /* !USE_RINGBUFINDEX && DEBUG_DUMP */
       LOG_INFO("Now resetting..\n");
       watchdog_reboot();
     }
+#if !USE_RINGBUFINDEX && DEBUG_DUMP
+    dump_mpmc_ring(&queue_r);
+    mpmc_ring_print_debug_trace(&queue_r);
+#endif /* DEBUG_DUMP */
     LOG_INFO("Stopping the test.\n");
     stream_control_finish(&sc_normal_put);
     stream_control_finish(&sc_normal_get);

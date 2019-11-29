@@ -74,6 +74,10 @@
  */
 #define DEBUG_DUMP 1
 
+#if DEBUG_DUMP
+#define MPMC_RING_CONF_DEBUG_TRACE_SIZE 32
+#endif /* DEBUG_DUMP */
+
 /*
  * If non-zero, use ringbufindex instead of mpmc-ring for queue
  * implementation. This is to demonstrate danger of using
