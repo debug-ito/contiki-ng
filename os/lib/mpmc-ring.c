@@ -1,6 +1,7 @@
 #include <string.h>
 #include "lib/assert.h"
 #include "sys/memory-barrier.h"
+#include "sys/critical.h"
 
 #include "mpmc-ring.h"
 
@@ -85,12 +86,53 @@ next(mpmc_ring_index_t i, mpmc_ring_index_t mask)
 
 /*----------------------------------------------------------------------------------------*/
 
+#if MPMC_RING_DEBUG_TRACE_ENABLED
+static inline void
+add_debug_trace(struct mpmc_ring *ring, mpmc_ring_index_t index, uint8_t event)
+{
+  int_master_status_t s = critical_enter();
+  ring->debug_trace[ring->debug_trace_next_put].target = index;
+  ring->debug_trace[ring->debug_trace_next_put].event = event;
+  ring->debug_trace_next_put = (ring->debug_trace_next_put + 1) % MPMC_RING_DEBUG_TRACE_SIZE;
+  critical_exit(s);
+}
+
+static inline uint16_t
+prev_trace_index(uint16_t index)
+{
+  return index == 0 ? (MPMC_RING_DEBUG_TRACE_SIZE - 1) : (index - 1);
+}
+
+void
+mpmc_ring_print_debug_trace(const struct mpmc_ring *ring)
+{
+  int_master_status_t s = critical_enter();
+  uint16_t end = ring->debug_trace_next_put;
+  uint16_t i;
+  uint16_t n = 0;
+  for(i = prev_trace_index(end) ; i != end ; i = prev_trace_index(i), n++) {
+    const struct mpmc_ring_trace_entry *e = &ring->debug_trace[i];
+    if(e->event == MPMC_RING_TRACE_EVENT_UNDEFINED) break;
+    printf("[MPMC RING TRACE] %5u event:%u target:%u\n", n, e->event, e->target);
+  }
+  critical_exit(s);
+}
+#else /* MPMC_RING_DEBUG_TRACE_ENABLED */
+#define add_debug_trace(r,i,e)
+#endif /* MPMC_RING_DEBUG_TRACE_ENABLED */
+
+/*----------------------------------------------------------------------------------------*/
+
 void
 mpmc_ring_init(struct mpmc_ring *ring)
 {
   ring->put_ptr = 0;
   ring->get_ptr = 0;
   memset(ring->state, 0, (size_t)ring->mask + 1);
+#if MPMC_RING_DEBUG_TRACE_ENABLED
+  memset(ring->debug_trace, 0, sizeof(ring->debug_trace));
+  ring->debug_trace_next_put = 0;
+#endif /* MPMC_RING_DEBUG_TRACE_ENABLED */
 }
 
 int
@@ -104,6 +146,7 @@ mpmc_ring_put_begin(struct mpmc_ring *ring)
   memory_barrier();
   for( ; !is_full(tmp_put, now_get, ring->mask); tmp_put = next(tmp_put, ring->mask)) {
     if(atomic_cas_uint8(&ring->state[tmp_put], MPMC_RING_EMPTY, MPMC_RING_PUTTING)) {
+      add_debug_trace(ring, tmp_put, MPMC_RING_TRACE_EVENT_EMPTY_TO_PUTTING);
       return tmp_put;
     }
   }
@@ -118,13 +161,16 @@ mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
   assert(ring->state[index] == MPMC_RING_PUTTING);
   
   ring->state[index] = MPMC_RING_OCCUPIED;
+  add_debug_trace(ring, index, MPMC_RING_TRACE_EVENT_PUTTING_TO_OCCUPIED);
   now_get = ring->get_ptr;
   while(1) {
     mpmc_ring_index_t tmp_put;
     tmp_put = ring->put_ptr;
     memory_barrier();
     if(ring->state[tmp_put] == MPMC_RING_OCCUPIED && !is_full(tmp_put, now_get, ring->mask)) {
-      atomic_cas_uint8(&ring->put_ptr, tmp_put, next(tmp_put, ring->mask));
+      if(atomic_cas_uint8(&ring->put_ptr, tmp_put, next(tmp_put, ring->mask))) {
+        add_debug_trace(ring, tmp_put, MPMC_RING_TRACE_EVENT_NEXT_PUT_PTR);
+      }
     } else {
       break;
     }
@@ -142,6 +188,7 @@ mpmc_ring_get_begin(struct mpmc_ring *ring)
   memory_barrier();
   for( ; !is_empty(now_put, tmp_get, ring->mask); tmp_get = next(tmp_get, ring->mask)) {
     if(atomic_cas_uint8(&ring->state[tmp_get], MPMC_RING_OCCUPIED, MPMC_RING_GETTING)) {
+      add_debug_trace(ring, tmp_get, MPMC_RING_TRACE_EVENT_OCCUPIED_TO_GETTING);
       return tmp_get;
     }
   }
@@ -156,13 +203,16 @@ mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
   assert(ring->state[index] == MPMC_RING_GETTING);
   
   ring->state[index] = MPMC_RING_EMPTY;
+  add_debug_trace(ring, index, MPMC_RING_TRACE_EVENT_GETTING_TO_EMPTY);
   now_put = ring->put_ptr;
   while(1) {
     mpmc_ring_index_t tmp_get;
     tmp_get = ring->get_ptr;
     memory_barrier();
     if(ring->state[tmp_get] == MPMC_RING_EMPTY && !is_empty(now_put, tmp_get, ring->mask)) {
-      atomic_cas_uint8(&ring->get_ptr, tmp_get, next(tmp_get, ring->mask));
+      if(atomic_cas_uint8(&ring->get_ptr, tmp_get, next(tmp_get, ring->mask))) {
+        add_debug_trace(ring, tmp_get, MPMC_RING_TRACE_EVENT_NEXT_GET_PTR);
+      }
     } else {
       break;
     }

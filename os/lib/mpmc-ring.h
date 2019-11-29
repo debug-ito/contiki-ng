@@ -52,10 +52,43 @@
 #include "sys/atomic.h"
 #include "sys/cc.h"
 
+/*----------------------------------------------------------------------------------------*/
+
+#ifdef MPMC_RING_CONF_DEBUG_TRACE_SIZE
+#define MPMC_RING_DEBUG_TRACE_SIZE MPMC_RING_CONF_DEBUG_TRACE_SIZE
+#else /* MPMC_RING_CONF_DEBUG_TRACE_SIZE */
+#define MPMC_RING_DEBUG_TRACE_SIZE 0
+#endif /* MPMC_RING_CONF_DEBUG_TRACE_SIZE */
+
+#define MPMC_RING_DEBUG_TRACE_ENABLED ((MPMC_RING_DEBUG_TRACE_SIZE) > 0)
+
+/*----------------------------------------------------------------------------------------*/
+
 /**
  * Index managed by a mpmc_ring.
  */
 typedef uint8_t mpmc_ring_index_t;
+
+#if MPMC_RING_DEBUG_TRACE_ENABLED
+enum mpmc_ring_trace_event {
+  MPMC_RING_TRACE_EVENT_UNDEFINED = 0,
+  MPMC_RING_TRACE_EVENT_EMPTY_TO_PUTTING,
+  MPMC_RING_TRACE_EVENT_PUTTING_TO_OCCUPIED,
+  MPMC_RING_TRACE_EVENT_OCCUPIED_TO_GETTING,
+  MPMC_RING_TRACE_EVENT_GETTING_TO_EMPTY,
+  MPMC_RING_TRACE_EVENT_NEXT_PUT_PTR,
+  MPMC_RING_TRACE_EVENT_NEXT_GET_PTR,
+};
+
+/**
+ * An entry of trace of behavior of mpmc_queue, used for debug.
+ */
+struct mpmc_ring_trace_entry {
+  mpmc_ring_index_t target;
+  uint8_t event;
+};
+#endif /* MPMC_RING_DEBUG_TRACE_ENABLED */
+
 
 /**
  * The multi-producer multi-consumer ring buffer.
@@ -68,7 +101,13 @@ struct mpmc_ring {
   mpmc_ring_index_t get_ptr;
   uint8_t * const state;
   const mpmc_ring_index_t mask;
+#if MPMC_RING_DEBUG_TRACE_ENABLED
+  struct mpmc_ring_trace_entry debug_trace[MPMC_RING_DEBUG_TRACE_SIZE];
+  uint16_t debug_trace_next_put;
+#endif /* MPMC_RING_DEBUG_TRACE_ENABLED */
 };
+
+/*----------------------------------------------------------------------------------------*/
 
 /**
  * Declare and define a mpmc_ring.
@@ -138,5 +177,12 @@ int mpmc_ring_elements(const struct mpmc_ring *ring);
  * \return Non-zero if the queue is empty. Zero otherwise.
  */
 int mpmc_ring_empty(const struct mpmc_ring *ring);
+
+#if MPMC_RING_DEBUG_TRACE_ENABLED
+void mpmc_ring_print_debug_trace(const struct mpmc_ring *ring);
+#else /* MPMC_RING_DEBUG_TRACE_ENABLED */
+#define mpmp_ring_print_debug_trace(r)
+#endif /* MPMC_RING_DEBUG_TRACE_ENABLED */
+
 
 #endif /* _MPMC_RING_H_ */
