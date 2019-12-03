@@ -154,10 +154,26 @@ mpmc_ring_put_begin(struct mpmc_ring *ring)
   now_get = ring->get_ptr;
   tmp_put = ring->put_ptr;
   memory_barrier();
-  for( ; !is_full(tmp_put, now_get, ring->mask); tmp_put = next(tmp_put, ring->mask)) {
+  while(!is_full(tmp_put, now_get, ring->mask)) {
     if(atomic_cas_uint8(&ring->state[tmp_put], MPMC_RING_EMPTY, MPMC_RING_PUTTING)) {
       add_debug_trace(ring, tmp_put, MPMC_RING_TRACE_EVENT_EMPTY_TO_PUTTING);
       return tmp_put;
+    } else {
+      /* Failed to update the state */
+      memory_barrier();
+      if(ring->state[tmp_put] == MPMC_RING_EMPTY) {
+        /*
+         * Looks like no one succeeded to update the state. Retry at
+         * the same index.
+         */
+        ;
+      } else {
+        /*
+         * It's not EMPTY in the first place, or someone else
+         * updated the state. Try the next index.
+         */
+        tmp_put = next(tmp_put, ring->mask);
+      }
     }
   }
   return -1;
@@ -190,16 +206,24 @@ mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
 int
 mpmc_ring_get_begin(struct mpmc_ring *ring)
 {
+  /* The dual of mpmc_ring_put_begin. */
   mpmc_ring_index_t tmp_get;
   mpmc_ring_index_t now_put;
   assert(ring != NULL);
   now_put = ring->put_ptr;
   tmp_get = ring->get_ptr;
   memory_barrier();
-  for( ; !is_empty(now_put, tmp_get, ring->mask); tmp_get = next(tmp_get, ring->mask)) {
+  while(!is_empty(now_put, tmp_get, ring->mask)) {
     if(atomic_cas_uint8(&ring->state[tmp_get], MPMC_RING_OCCUPIED, MPMC_RING_GETTING)) {
       add_debug_trace(ring, tmp_get, MPMC_RING_TRACE_EVENT_OCCUPIED_TO_GETTING);
       return tmp_get;
+    } else {
+      memory_barrier();
+      if(ring->state[tmp_get] == MPMC_RING_OCCUPIED) {
+        ;
+      } else {
+        tmp_get = next(tmp_get, ring->mask);
+      }
     }
   }
   return -1;
@@ -208,6 +232,7 @@ mpmc_ring_get_begin(struct mpmc_ring *ring)
 void
 mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
 {
+  /* The dual of mpmc_ring_put_commit. */
   mpmc_ring_index_t now_put;
   assert(ring != NULL);
   assert(ring->state[index] == MPMC_RING_GETTING);
