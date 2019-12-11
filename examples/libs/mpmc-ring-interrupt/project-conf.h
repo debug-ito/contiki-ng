@@ -70,7 +70,7 @@
 #define MOVE_WAIT_COUNT 400
 
 /*
- * If set, it dumps internal of mpmc_ring when the test fails.
+ * If set, it dumps internal of mpmc_ring when the test finishes.
  */
 #define DEBUG_DUMP 1
 

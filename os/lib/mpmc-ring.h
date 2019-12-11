@@ -42,7 +42,10 @@
  * queue. If your platform implements sys/atomic by deferring
  * interrupts, mpmc-queue also defers interrupts.
  *
- * To define and allocate a mpmc-ring object, use MPMC_RING macro.
+ * To define and allocate a mpmc-ring object, use MPMC_RING
+ * macro. For basic usage, see
+ * examples/libs/mpmc-ring-interrupt/mpmc-ring-interrupt.c,
+ * especially do_get and do_put functions.
  */
 
 #ifndef _MPMC_RING_H_
@@ -54,6 +57,9 @@
 
 /*----------------------------------------------------------------------------------------*/
 
+/*
+ * (For debug) Size of entries to trace the behavior of a mpmc-ring.
+ */
 #ifdef MPMC_RING_CONF_DEBUG_TRACE_SIZE
 #define MPMC_RING_DEBUG_TRACE_SIZE MPMC_RING_CONF_DEBUG_TRACE_SIZE
 #else /* MPMC_RING_CONF_DEBUG_TRACE_SIZE */
@@ -81,7 +87,7 @@ enum mpmc_ring_trace_event {
 };
 
 /**
- * An entry of trace of behavior of mpmc_queue, used for debug.
+ * (For debug) A trace entry about behavior of mpmc_queue.
  */
 struct mpmc_ring_trace_entry {
   mpmc_ring_index_t target;
@@ -115,7 +121,7 @@ struct mpmc_ring {
  * \param name Variable name of the struct mpmc_ring.
  *
  * \param size Size of the array that keeps the queue elements. Must
- * be power of 2.
+ * be power of 2, and 0 < size <= 256.
  */
 #define MPMC_RING(name, size)                                           \
   static uint8_t CC_CONCAT(name,_state)[size];                          \
@@ -178,7 +184,12 @@ int mpmc_ring_elements(const struct mpmc_ring *ring);
  */
 int mpmc_ring_empty(const struct mpmc_ring *ring);
 
+
 #if MPMC_RING_DEBUG_TRACE_ENABLED
+/**
+ * (For debug) Print the trace entries of the mpmc_ring. It prints
+ * the newest trace entry first, followed by older entries.
+ */
 void mpmc_ring_print_debug_trace(const struct mpmc_ring *ring);
 #else /* MPMC_RING_DEBUG_TRACE_ENABLED */
 #define mpmp_ring_print_debug_trace(r)

@@ -429,6 +429,9 @@ schedule_rtimer(void)
 static void
 task_rtimer(struct rtimer *rt, void *data)
 {
+  /*
+   * Run either the producer or consumer in an interrupt.
+   */
   if(do_put_in_rtimer) {
     if(interrupt_put_gen.generated_num < INTERRUPT_PUT_NUM) {
       if(stream_control_try(&sc_interrupt_put) && do_put(&interrupt_put_gen)) {
