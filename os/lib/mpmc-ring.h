@@ -147,6 +147,8 @@ int mpmc_ring_put_begin(struct mpmc_ring *ring);
 /**
  * Finish putting an element to the queue.
  *
+ * \param ring The mpmc_ring object.
+ *
  * \param index The index obtained by the matching call to
  * mpmc_ring_put_begin.
  *
@@ -167,6 +169,8 @@ int mpmc_ring_get_begin(struct mpmc_ring *ring);
 
 /**
  * Finish getting an element to the queue.
+ *
+ * \param ring The mpmc_ring object.
  *
  * \param index The index obtained by the matching call to
  * mpmc_ring_get_begin.
