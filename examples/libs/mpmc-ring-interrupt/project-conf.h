@@ -28,6 +28,12 @@
  */
 #define QUEUE_LEN 64
 
+/*
+ * Number of get or put trials done in a single call to the
+ * interrupt handler.
+ */
+#define TRY_PER_INTERRUPT 1
+
 /*---------------------------------------------------------------------------*/
 
 /*

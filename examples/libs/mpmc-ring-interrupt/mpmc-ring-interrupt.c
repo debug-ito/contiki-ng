@@ -430,36 +430,39 @@ static void
 task_rtimer(struct rtimer *rt, void *data)
 {
   /*
-   * Run either the producer or consumer in an interrupt.
+   * Run the producer or consumer alternately.
    */
-  if(do_put_in_rtimer) {
-    if(interrupt_put_gen.generated_num < INTERRUPT_PUT_NUM) {
-      if(stream_control_try(&sc_interrupt_put) && do_put(&interrupt_put_gen)) {
-        RLOG_DBG("Interrupt put\n");
+  int try_i;
+  for(try_i = 0 ; try_i < TRY_PER_INTERRUPT ; try_i++) {
+    if(do_put_in_rtimer) {
+      if(interrupt_put_gen.generated_num < INTERRUPT_PUT_NUM) {
+        if(stream_control_try(&sc_interrupt_put) && do_put(&interrupt_put_gen)) {
+          RLOG_DBG("Interrupt put\n");
+        }
+        if(interrupt_put_gen.generated_num == INTERRUPT_PUT_NUM) {
+          stream_control_finish(&sc_interrupt_put);
+          RLOG_INFO("Interrupt put done\n");
+        }
       }
-      if(interrupt_put_gen.generated_num == INTERRUPT_PUT_NUM) {
-        stream_control_finish(&sc_interrupt_put);
-        RLOG_INFO("Interrupt put done\n");
+    } else if(enable_get) {
+      if(interrupt_store.current_num < INTERRUPT_GET_NUM) {
+        if(stream_control_try(&sc_interrupt_get) && do_get(&interrupt_store)) {
+          RLOG_DBG("Interrupt get\n");
+        }
+        if(interrupt_store.current_num == INTERRUPT_GET_NUM) {
+          stream_control_finish(&sc_interrupt_get);
+          RLOG_INFO("Interrupt get done\n");
+        }
       }
     }
-  } else if(enable_get) {
-    if(interrupt_store.current_num < INTERRUPT_GET_NUM) {
-      if(stream_control_try(&sc_interrupt_get) && do_get(&interrupt_store)) {
-        RLOG_DBG("Interrupt get\n");
-      }
-      if(interrupt_store.current_num == INTERRUPT_GET_NUM) {
-        stream_control_finish(&sc_interrupt_get);
-        RLOG_INFO("Interrupt get done\n");
-      }
+    do_put_in_rtimer = !do_put_in_rtimer;
+    if(stream_control_is_finished(&sc_interrupt_put)
+       && stream_control_is_finished(&sc_interrupt_get)) {
+      RLOG_INFO("Finished rtimer\n");
+      return;
     }
   }
-  do_put_in_rtimer = !do_put_in_rtimer;
-  if(!stream_control_is_finished(&sc_interrupt_put)
-     || !stream_control_is_finished(&sc_interrupt_get)) {
-    schedule_rtimer();
-  } else {
-    RLOG_INFO("Finished rtimer\n");
-  }
+  schedule_rtimer();
 }
 /*---------------------------------------------------------------------------*/
 static int
@@ -583,6 +586,7 @@ PROCESS_THREAD(main_process, ev, data)
     LOG_INFO("PUT_INTERVAL = %d\n", PUT_INTERVAL);
     LOG_INFO("GET_INTERVAL = %d\n", GET_INTERVAL);
     LOG_INFO("QUEUE_LEN = %d\n", QUEUE_LEN);
+    LOG_INFO("TRY_PER_INTERRUPT = %d\n", TRY_PER_INTERRUPT);
     LOG_INFO("NORMAL_PUT_NUM = %d\n", NORMAL_PUT_NUM);
     LOG_INFO("INTERRUPT_PUT_NUM = %d\n", INTERRUPT_PUT_NUM);
     LOG_INFO("NORMAL_GET_NUM = %d\n", NORMAL_GET_NUM);
