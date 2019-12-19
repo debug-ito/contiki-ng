@@ -85,6 +85,11 @@
 #endif /* DEBUG_DUMP */
 
 /*
+ * Deliberately add delays in mpmc-ring operations.
+ */
+#define MPMC_RING_CONF_DEBUG_DELAY 3000
+
+/*
  * If non-zero, use ringbufindex instead of mpmc-ring for queue
  * implementation. This is to demonstrate danger of using
  * ringbufindex in multi-producer multi-consumer scenarios.
