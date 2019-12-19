@@ -68,6 +68,18 @@
 
 #define MPMC_RING_DEBUG_TRACE_ENABLED ((MPMC_RING_DEBUG_TRACE_SIZE) > 0)
 
+/*
+ * (For debug/test) Delay (in counts) deliberately put in operations
+ * of mpmc-ring. Useful to test parallel operations.
+ */
+#ifdef MPMC_RING_CONF_DEBUG_DELAY
+#define MPMC_RING_DEBUG_DELAY MPMC_RING_CONF_DEBUG_DELAY
+#else /* MPMC_RING_CONF_DEBUG_DELAY */
+#define MPMC_RING_DEBUG_DELAY 0
+#endif /* MPMC_RING_CONF_DEBUG_DELAY */
+
+#define MPMC_RING_DEBUG_DELAY_ENABLED ((MPMC_RING_DEBUG_DELAY) > 0)
+
 /*----------------------------------------------------------------------------------------*/
 
 /**
