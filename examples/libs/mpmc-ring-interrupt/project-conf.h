@@ -87,7 +87,7 @@
 /*
  * Deliberately add delays in mpmc-ring operations.
  */
-#define MPMC_RING_CONF_DEBUG_DELAY 3000
+#define MPMC_RING_CONF_DEBUG_DELAY 1000
 
 /*
  * If non-zero, use ringbufindex instead of mpmc-ring for queue
