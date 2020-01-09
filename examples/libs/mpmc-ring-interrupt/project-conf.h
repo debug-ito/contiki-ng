@@ -87,8 +87,8 @@
 /*
  * Deliberately add delays at the starts of put_begin and get_begin.
  */
-#define MPMC_RING_CONF_DEBUG_DELAY 1000
-#define MPMC_RING_CONF_DEBUG_DELAY_POS (1 & (1<<7))
+#define MPMC_RING_CONF_DEBUG_DELAY 3000
+#define MPMC_RING_CONF_DEBUG_DELAY_POS ((1<<1) & (1<<7))
 
 /*
  * If non-zero, use ringbufindex instead of mpmc-ring for queue
