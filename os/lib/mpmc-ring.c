@@ -134,15 +134,18 @@ mpmc_ring_print_debug_trace(const struct mpmc_ring *ring)
 
 #if MPMC_RING_DEBUG_DELAY_ENABLED
 static void
-debug_delay(void)
+debug_delay(uint8_t position_index)
 {
   volatile uint32_t i;
+  if(! (((uint32_t)1 << position_index) & MPMC_RING_DEBUG_DELAY_POS)) {
+    return;
+  }
   for(i = 0 ; i < MPMC_RING_DEBUG_DELAY ; i++) {
     ;
   }
 }
 #else /* MPMC_RING_DEBUG_DELAY_ENABLED */
-#define debug_delay()
+#define debug_delay(p)
 #endif /* MPMC_RING_DEBUG_DELAY_ENABLED */
 
 
@@ -169,16 +172,16 @@ mpmc_ring_put_begin(struct mpmc_ring *ring)
   now_get = ring->get_ptr;
   tmp_put = ring->put_ptr;
   memory_barrier();
-  debug_delay();
+  debug_delay(1);
   while(!is_full(tmp_put, now_get, ring->mask)) {
-    debug_delay();
+    debug_delay(2);
     if(atomic_cas_uint8(&ring->state[tmp_put], MPMC_RING_EMPTY, MPMC_RING_PUTTING)) {
       add_debug_trace(ring, tmp_put, MPMC_RING_TRACE_EVENT_EMPTY_TO_PUTTING);
       return tmp_put;
     } else {
       /* Failed to update the state */
       memory_barrier();
-      debug_delay();
+      debug_delay(3);
       if(ring->state[tmp_put] == MPMC_RING_EMPTY) {
         /*
          * Looks like no one succeeded to update the state. Retry at
@@ -206,15 +209,15 @@ mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
   
   ring->state[index] = MPMC_RING_OCCUPIED;
   add_debug_trace(ring, index, MPMC_RING_TRACE_EVENT_PUTTING_TO_OCCUPIED);
-  debug_delay();
+  debug_delay(4);
   now_get = ring->get_ptr;
   while(1) {
     mpmc_ring_index_t tmp_put;
-    debug_delay();
+    debug_delay(5);
     tmp_put = ring->put_ptr;
     memory_barrier();
     if(ring->state[tmp_put] == MPMC_RING_OCCUPIED && !is_full(tmp_put, now_get, ring->mask)) {
-      debug_delay();
+      debug_delay(6);
       if(atomic_cas_uint8(&ring->put_ptr, tmp_put, next(tmp_put, ring->mask))) {
         add_debug_trace(ring, tmp_put, MPMC_RING_TRACE_EVENT_NEXT_PUT_PTR);
       }
@@ -234,15 +237,15 @@ mpmc_ring_get_begin(struct mpmc_ring *ring)
   now_put = ring->put_ptr;
   tmp_get = ring->get_ptr;
   memory_barrier();
-  debug_delay();
+  debug_delay(7);
   while(!is_empty(now_put, tmp_get, ring->mask)) {
-    debug_delay();
+    debug_delay(8);
     if(atomic_cas_uint8(&ring->state[tmp_get], MPMC_RING_OCCUPIED, MPMC_RING_GETTING)) {
       add_debug_trace(ring, tmp_get, MPMC_RING_TRACE_EVENT_OCCUPIED_TO_GETTING);
       return tmp_get;
     } else {
       memory_barrier();
-      debug_delay();
+      debug_delay(9);
       if(ring->state[tmp_get] == MPMC_RING_OCCUPIED) {
         ;
       } else {
@@ -263,15 +266,15 @@ mpmc_ring_get_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
   
   ring->state[index] = MPMC_RING_EMPTY;
   add_debug_trace(ring, index, MPMC_RING_TRACE_EVENT_GETTING_TO_EMPTY);
-  debug_delay();
+  debug_delay(10);
   now_put = ring->put_ptr;
   while(1) {
     mpmc_ring_index_t tmp_get;
-    debug_delay();
+    debug_delay(11);
     tmp_get = ring->get_ptr;
     memory_barrier();
     if(ring->state[tmp_get] == MPMC_RING_EMPTY && !is_empty(now_put, tmp_get, ring->mask)) {
-      debug_delay();
+      debug_delay(12);
       if(atomic_cas_uint8(&ring->get_ptr, tmp_get, next(tmp_get, ring->mask))) {
         add_debug_trace(ring, tmp_get, MPMC_RING_TRACE_EVENT_NEXT_GET_PTR);
       }

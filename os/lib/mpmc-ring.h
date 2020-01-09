@@ -80,6 +80,19 @@
 
 #define MPMC_RING_DEBUG_DELAY_ENABLED ((MPMC_RING_DEBUG_DELAY) > 0)
 
+#if MPMC_RING_DEBUG_DELAY_ENABLED
+/*
+ * (For debug/test) A bitmask that specifies the positions where the
+ * debug delay is inserted.
+ */
+#ifdef MPMC_RING_CONF_DEBUG_DELAY_POS
+#define MPMC_RING_DEBUG_DELAY_POS MPMC_RING_CONF_DEBUG_DELAY_POS
+#else /* MPMC_RING_CONF_DEBUG_DELAY_POS */
+#define MPMC_RING_DEBUG_DELAY_POS (0xFFFFFFFF)
+#endif /* MPMC_RING_CONF_DEBUG_DELAY_POS */
+#endif /* MPMC_RING_DEBUG_DELAY_ENABLED */
+
+
 /*----------------------------------------------------------------------------------------*/
 
 /**
