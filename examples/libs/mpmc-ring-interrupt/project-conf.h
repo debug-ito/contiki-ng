@@ -73,7 +73,7 @@
  * The higher this value is, the more often that preemption between
  * queue operations happens.
  */
-#define MOVE_WAIT_COUNT 400
+#define MOVE_WAIT_COUNT 100
 
 /*
  * If set, it dumps internal of mpmc_ring when the test finishes.
@@ -87,7 +87,7 @@
 /*
  * Deliberately add delays at the starts of put_begin and get_begin.
  */
-#define MPMC_RING_CONF_DEBUG_DELAY 3000
+#define MPMC_RING_CONF_DEBUG_DELAY 8000
 #define MPMC_RING_CONF_DEBUG_DELAY_POS ((1<<1) | (1<<7))
 
 /*
