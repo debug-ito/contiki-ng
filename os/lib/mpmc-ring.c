@@ -296,3 +296,51 @@ mpmc_ring_empty(const struct mpmc_ring *ring)
 {
   return mpmc_ring_elements(ring) == 0;
 }
+
+void
+mpmc_ring_debug_state_count(const struct mpmc_ring *ring, int* count_empty, int *count_putting, int *count_getting, int *count_occupied)
+{
+  int_master_status_t st;
+  int i;
+  assert(ring != NULL);
+  if(count_empty) {
+    *count_empty = 0;
+  }
+  if(count_putting) {
+    *count_putting = 0;
+  }
+  if(count_getting) {
+    *count_getting = 0;
+  }
+  if(count_occupied) {
+    *count_occupied = 0;
+  }
+  st = critical_enter();
+  for(i = 0 ; i <= ring->mask ; i++) {
+    switch(ring->state[i]) {
+    case MPMC_RING_EMPTY:
+      if(count_empty) {
+        (*count_empty)++;
+      }
+      break;
+    case MPMC_RING_PUTTING:
+      if(count_putting) {
+        (*count_putting)++;
+      }
+      break;
+    case MPMC_RING_GETTING:
+      if(count_getting) {
+        (*count_getting)++;
+      }
+      break;
+    case MPMC_RING_OCCUPIED:
+      if(count_occupied) {
+        (*count_occupied)++;
+      }
+      break;
+    default:
+      ;
+    }
+  }
+  critical_exit(st);
+}

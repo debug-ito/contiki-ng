@@ -213,6 +213,17 @@ int mpmc_ring_elements(const struct mpmc_ring *ring);
  */
 int mpmc_ring_empty(const struct mpmc_ring *ring);
 
+/**
+ * (For debug) Count the number of slots for each state. This
+ * function enters a critical section inside.
+ *
+ * \param ring The mpmc_ring object.
+ * \param count_empty (out) Number of EMPTY slots. If NULL, it's ignored.
+ * \param count_putting (out) Number of PUTTING slots. If NULL, it's ignored.
+ * \param count_getting (out) Number of GETTING slots. If NULL, it's ignored
+ * \param count_occupied (out) Number of OCCUPIED slots. If NULL, it's ignored.
+ */
+void mpmc_ring_debug_state_count(const struct mpmc_ring *ring, int* count_empty, int *count_putting, int *count_getting, int *count_occupied);
 
 #if MPMC_RING_DEBUG_TRACE_ENABLED
 /**
