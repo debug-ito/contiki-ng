@@ -529,6 +529,7 @@ check_result(void)
 static void
 check_intermediate_integrity(void)
 {
+#if !USE_RINGBUFINDEX
   int elems = 0;
   int count_occupied = 0;
   int count_getting = 0;
@@ -549,6 +550,7 @@ check_intermediate_integrity(void)
   if(count_occupied != elems) {
     LOG_ERR("Intermediate: OCCUPIED was %d (should be %d)\n", count_occupied, elems);
   }
+#endif /* !USE_RINGBUFINDEX */
 }
 /*---------------------------------------------------------------------------*/
 PROCESS(normal_put, "normal PUT process");
