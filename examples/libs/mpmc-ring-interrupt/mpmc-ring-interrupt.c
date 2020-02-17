@@ -534,6 +534,7 @@ check_intermediate_integrity(void)
   int count_occupied = 0;
   int count_getting = 0;
   int count_putting = 0;
+  int failed = 0;
   int_master_status_t st;
   
   st = critical_enter();
@@ -542,14 +543,22 @@ check_intermediate_integrity(void)
   critical_exit(st);
 
   if(count_putting != 0) {
+    failed = 1;
     LOG_ERR("Intermediate: PUTTING was %d (should be 0)\n", count_putting);
   }
   if(count_getting != 0) {
+    failed = 1;
     LOG_ERR("Intermediate: GETTING was %d (should be 0)\n", count_getting);
   }
   if(count_occupied != elems) {
+    failed = 1;
     LOG_ERR("Intermediate: OCCUPIED was %d (should be %d)\n", count_occupied, elems);
   }
+#if DEBUG_DUMP
+  if(failed) {
+    dump_mpmc_ring(&queue_r);
+  }
+#endif /* DEBUG_DUMP */
 #endif /* !USE_RINGBUFINDEX */
 }
 /*---------------------------------------------------------------------------*/
