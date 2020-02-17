@@ -525,6 +525,31 @@ check_result(void)
   LOG_INFO("Put duration: normal:%ld interrupt:%ld\n", (int32_t)stream_control_duration(&sc_normal_put), (int32_t)stream_control_duration(&sc_interrupt_put));
   return is_ok;
 }
+
+static void
+check_intermediate_integrity(void)
+{
+  int elems = 0;
+  int count_occupied = 0;
+  int count_getting = 0;
+  int count_putting = 0;
+  int_master_status_t st;
+  
+  st = critical_enter();
+  elems = mpmc_ring_elements(&queue_r);
+  mpmc_ring_debug_state_count(&queue_r, NULL, &count_putting, &count_getting, &count_occupied);
+  critical_exit(st);
+
+  if(count_putting != 0) {
+    LOG_ERR("Intermediate: PUTTING was %d (should be 0)\n", count_putting);
+  }
+  if(count_getting != 0) {
+    LOG_ERR("Intermediate: GETTING was %d (should be 0)\n", count_getting);
+  }
+  if(count_occupied != elems) {
+    LOG_ERR("Intermediate: OCCUPIED was %d (should be %d)\n", count_occupied, elems);
+  }
+}
 /*---------------------------------------------------------------------------*/
 PROCESS(normal_put, "normal PUT process");
 PROCESS_THREAD(normal_put, ev, data)
@@ -535,6 +560,7 @@ PROCESS_THREAD(normal_put, ev, data)
     if(normal_put_gen.generated_num < NORMAL_PUT_NUM) {
       if(stream_control_try(&sc_normal_put) && do_put(&normal_put_gen)) {
         LOG_DBG("Normal put\n");
+        check_intermediate_integrity();
       }
       if(normal_put_gen.generated_num == NORMAL_PUT_NUM) {
         stream_control_finish(&sc_normal_put);
@@ -557,6 +583,7 @@ PROCESS_THREAD(normal_get, ev, data)
     if(normal_store.current_num < NORMAL_GET_NUM) {
       if(stream_control_try(&sc_normal_get) && do_get(&normal_store)) {
         LOG_DBG("Normal get\n");
+        check_intermediate_integrity();
       }
       if(normal_store.current_num == NORMAL_GET_NUM) {
         stream_control_finish(&sc_normal_get);
