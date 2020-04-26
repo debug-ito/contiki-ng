@@ -39,7 +39,15 @@
 PROCESS(test_process, "mpmc-ring test");
 AUTOSTART_PROCESSES(&test_process);
 
+MPMC_RING(ring2, 2);
 MPMC_RING(ring32, 32);
+
+static void
+init_index(mpmc_ring_index_t *i)
+{
+  i->i = 0;
+  i->_pos = 0;
+}
 
 void
 test_print_report(const unit_test_t *utp)
@@ -69,6 +77,140 @@ UNIT_TEST(test_init_get)
   UNIT_TEST_END();
 }
 
+UNIT_TEST_REGISTER(test_put_get, "Put and get");
+UNIT_TEST(test_put_get)
+{
+  const int LOOP_NUM = 50;
+  mpmc_ring_index_t index;
+  int vals[32];
+  int put_val = 100;
+  int got_val;
+  int i;
+  int is_success;
+
+  UNIT_TEST_BEGIN();
+
+  mpmc_ring_init(&ring32);
+  for(i = 0 ; i < LOOP_NUM ; i++) {
+    init_index(&index);
+    is_success = mpmc_ring_put_begin(&ring32, &index);
+    UNIT_TEST_ASSERT(is_success);
+    vals[index.i] = put_val;
+    mpmc_ring_put_commit(&ring32, &index);
+
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 1);
+
+    init_index(&index);
+    is_success = mpmc_ring_get_begin(&ring32, &index);
+    UNIT_TEST_ASSERT(is_success);
+    got_val = vals[index.i];
+    mpmc_ring_get_commit(&ring32, &index);
+
+    UNIT_TEST_ASSERT(got_val == put_val);
+    put_val++;
+    
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 0);
+  }
+  
+  UNIT_TEST_END();
+}
+
+UNIT_TEST_REGISTER(test_drain255, "Drain at pos 255");
+UNIT_TEST(test_drain255)
+{
+  mpmc_ring_index_t index;
+  int i;
+  int is_success;
+  int vals[32];
+  int got;
+  
+  UNIT_TEST_BEGIN();
+
+  mpmc_ring_init(&ring32);
+
+  for(i = 0 ; i < 255 ; i++) {
+    is_success = mpmc_ring_put_begin(&ring32, &index);
+    UNIT_TEST_ASSERT(is_success);
+    vals[index.i] = 77 + i;
+    mpmc_ring_put_commit(&ring32, &index);
+
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 1);
+
+    is_success = mpmc_ring_get_begin(&ring32, &index);
+    UNIT_TEST_ASSERT(is_success);
+    got = vals[index.i];
+    mpmc_ring_get_commit(&ring32, &index);
+    UNIT_TEST_ASSERT(got == 77 + i);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 0);
+  }
+
+  // this should return failure immediately (without blocking)
+  is_success = mpmc_ring_get_begin(&ring32, &index);
+  UNIT_TEST_ASSERT(!is_success);
+  
+  UNIT_TEST_END();
+}
+
+UNIT_TEST_REGISTER(test_full_at_wrapped0, "Full at wrapped pos 0");
+UNIT_TEST(test_full_at_wrapped0)
+{
+  mpmc_ring_index_t index;
+  int i;
+  int is_success;
+  int vals[2];
+  int got;
+  
+  UNIT_TEST_BEGIN();
+
+  mpmc_ring_init(&ring2);
+
+  for(i = 0 ; i < 254 ; i++) {
+    is_success = mpmc_ring_put_begin(&ring2, &index);
+    UNIT_TEST_ASSERT(is_success);
+    vals[index.i] = 77 + i;
+    mpmc_ring_put_commit(&ring2, &index);
+
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring2) == 1);
+
+    is_success = mpmc_ring_get_begin(&ring2, &index);
+    UNIT_TEST_ASSERT(is_success);
+    got = vals[index.i];
+    mpmc_ring_get_commit(&ring2, &index);
+    UNIT_TEST_ASSERT(got == 77 + i);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring2) == 0);
+  }
+
+  is_success = mpmc_ring_put_begin(&ring2, &index);
+  UNIT_TEST_ASSERT(is_success);
+  vals[index.i] = 888;
+  mpmc_ring_put_commit(&ring2, &index);
+
+  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring2) == 1);
+
+  is_success = mpmc_ring_put_begin(&ring2, &index);
+  UNIT_TEST_ASSERT(is_success);
+  vals[index.i] = 889;
+  mpmc_ring_put_commit(&ring2, &index);
+
+  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring2) == 2);
+
+  // this should return failure immediately (without blocking)
+  is_success = mpmc_ring_put_begin(&ring2, &index);
+  UNIT_TEST_ASSERT(!is_success);
+
+  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring2) == 2);
+  
+  UNIT_TEST_END();
+}
+
+UNIT_TEST_REGISTER(test_queue128, "Queue of length 128");
+UNIT_TEST(test_queue128)
+{
+  UNIT_TEST_BEGIN();
+  UNIT_TEST_ASSERT(0); // TODO
+  UNIT_TEST_END();
+}
+
 PROCESS_THREAD(test_process, ev, data)
 {
   PROCESS_BEGIN();
@@ -76,6 +218,10 @@ PROCESS_THREAD(test_process, ev, data)
   printf("---\n");
 
   UNIT_TEST_RUN(test_init_get);
+  UNIT_TEST_RUN(test_put_get);
+  UNIT_TEST_RUN(test_drain255);
+  UNIT_TEST_RUN(test_full_at_wrapped0);
+  UNIT_TEST_RUN(test_queue128);
 
   printf("=check-me= DONE\n");
   PROCESS_END();
