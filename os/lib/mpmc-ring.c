@@ -37,8 +37,8 @@ void
 mpmc_ring_init(struct mpmc_ring *ring)
 {
   uint8_t i;
-  ring->put_ptr = 0;
-  ring->get_ptr = 0;
+  ring->put_pos = 0;
+  ring->get_pos = 0;
   for(i = 0 ; i <= ring->mask ; i++) {
     ring->sequences[i] = i;
   }
@@ -47,9 +47,70 @@ mpmc_ring_init(struct mpmc_ring *ring)
 int
 mpmc_ring_put_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index)
 {
+  uint8_t pos;
+  uint8_t index;
+
+  assert(ring != NULL);
+  assert(got_index != NULL);
+  
+  pos = ring->put_pos;
+  memory_barrier();
+  while(1) {
+    int8_t dif;
+    index = pos & ring->mask;
+    dif = (int8_t)(ring->sequences[index]) - (int8_t)pos;
+    memory_barrier();
+    if(dif == 0) {
+      if(atomic_cas_uint8(&ring->put_pos, pos, pos + 1)) {
+        break;
+      }
+    } else if(dif < 0) {
+      return 0;
+    } else {
+      pos = ring->put_pos;
+      memory_barrier();
+    }
+  }
+  got_index->i = index;
+  got_index->_pos = pos;
+  return 1;
+}
+
+void
+mpmc_ring_put_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
+{
+  assert(ring != NULL);
+  assert(index != NULL);
+
+  ring->sequences[index->i] = index->_pos + 1;
+}
+
+int
+mpmc_ring_get_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index)
+{
   // TODO
   return 0;
 }
+
+void
+mpmc_ring_get_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
+{
+  // TODO
+}
+
+int
+mpmc_ring_elements(const struct mpmc_ring *ring)
+{
+  assert(ring != NULL);
+  return elems(ring->put_pos, ring->get_pos, ring->mask);
+}
+
+int
+mpmc_ring_empty(const struct mpmc_ring *ring)
+{
+  return mpmc_ring_elements(ring) == 0;
+}
+
 
 //// int
 //// mpmc_ring_put_begin(struct mpmc_ring *ring)
@@ -88,12 +149,6 @@ mpmc_ring_put_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index)
 ////   return -1;
 //// }
 
-void
-mpmc_ring_put_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
-{
-  // TODO
-}
-
 //// void
 //// mpmc_ring_put_commit(struct mpmc_ring *ring, mpmc_ring_index_t index)
 //// {
@@ -120,30 +175,3 @@ mpmc_ring_put_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
 ////     }
 ////   }
 //// }
-
-int
-mpmc_ring_get_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index)
-{
-  // TODO
-  return 0;
-}
-
-void
-mpmc_ring_get_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
-{
-  // TODO
-}
-
-int
-mpmc_ring_elements(const struct mpmc_ring *ring)
-{
-  assert(ring != NULL);
-  return elems(ring->put_ptr, ring->get_ptr, ring->mask);
-}
-
-int
-mpmc_ring_empty(const struct mpmc_ring *ring)
-{
-  return mpmc_ring_elements(ring) == 0;
-}
-

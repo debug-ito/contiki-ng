@@ -64,8 +64,8 @@
  * MPMC_RING macro instead.
  */
 struct mpmc_ring {
-  uint8_t put_ptr;
-  uint8_t get_ptr;
+  uint8_t put_pos;
+  uint8_t get_pos;
   uint8_t * const sequences;
   const uint8_t mask;
 };
