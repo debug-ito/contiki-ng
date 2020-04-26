@@ -129,7 +129,7 @@ mpmc_ring_get_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index)
 }
 
 void
-mpmc_ring_get_commit(struct mpmc_ring *ring, const mpmc_ring_index_t index)
+mpmc_ring_get_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
 {
   // TODO
 }
