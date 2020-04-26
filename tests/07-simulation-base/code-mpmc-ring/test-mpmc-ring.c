@@ -41,6 +41,7 @@ AUTOSTART_PROCESSES(&test_process);
 
 MPMC_RING(ring2, 2);
 MPMC_RING(ring32, 32);
+MPMC_RING(ring128, 128);
 
 static void
 init_index(mpmc_ring_index_t *i)
@@ -206,8 +207,63 @@ UNIT_TEST(test_full_at_wrapped0)
 UNIT_TEST_REGISTER(test_queue128, "Queue of length 128");
 UNIT_TEST(test_queue128)
 {
+  uint16_t vals[128];
+  uint16_t put_val = 231;
+  uint16_t exp_get_val = put_val;
+  int is_success;
+  int i;
+  mpmc_ring_index_t index;
+  
   UNIT_TEST_BEGIN();
-  UNIT_TEST_ASSERT(0); // TODO
+
+  mpmc_ring_init(&ring128);
+  for(i = 0 ; i < 128 ; i++) {
+    is_success = mpmc_ring_put_begin(&ring128, &index);
+    UNIT_TEST_ASSERT(is_success);
+    vals[index.i] = put_val;
+    put_val++;
+    mpmc_ring_put_commit(&ring128, &index);
+  }
+  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring128) == 128);
+  is_success = mpmc_ring_put_begin(&ring128, &index);
+  UNIT_TEST_ASSERT(!is_success);
+
+  for(i = 0 ; i < 32 ; i++) {
+    is_success = mpmc_ring_get_begin(&ring128, &index);
+    UNIT_TEST_ASSERT(is_success);
+    UNIT_TEST_ASSERT(vals[index.i] == exp_get_val);
+    mpmc_ring_get_commit(&ring128, &index);
+    exp_get_val++;
+  }
+  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring128) == 96);
+
+  for(i = 0 ; i < 256 ; i++) {
+    is_success = mpmc_ring_put_begin(&ring128, &index);
+    UNIT_TEST_ASSERT(is_success);
+    vals[index.i] = put_val;
+    put_val++;
+    mpmc_ring_put_commit(&ring128, &index);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring128) == 97);
+
+    is_success = mpmc_ring_get_begin(&ring128, &index);
+    UNIT_TEST_ASSERT(is_success);
+    UNIT_TEST_ASSERT(vals[index.i] == exp_get_val);
+    mpmc_ring_get_commit(&ring128, &index);
+    exp_get_val++;
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring128) == 96);
+  }
+
+  for(i = 0 ; i < 96 ; i++) {
+    is_success = mpmc_ring_get_begin(&ring128, &index);
+    UNIT_TEST_ASSERT(is_success);
+    UNIT_TEST_ASSERT(vals[index.i] == exp_get_val);
+    mpmc_ring_get_commit(&ring128, &index);
+    exp_get_val++;
+  }
+  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring128) == 0);
+  is_success = mpmc_ring_get_begin(&ring128, &index);
+  UNIT_TEST_ASSERT(!is_success);
+  
   UNIT_TEST_END();
 }
 
