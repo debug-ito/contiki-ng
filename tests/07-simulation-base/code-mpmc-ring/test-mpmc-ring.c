@@ -115,6 +115,11 @@ test_put_get(unit_test_t *utp, mpmc_ring_t *ring)
     vals[index.i] = put_val;
     mpmc_ring_put_commit(ring, &index);
     put_val++;
+
+    // if(i > 100) {
+    //   printf("Loop = %d, elems = %d, get_pos = %u, put_pos = %u\n",
+    //          i, mpmc_ring_elements(ring), ring->get_pos, ring->put_pos);
+    // }
     UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == i + 1);
   }
   init_index(&index);
