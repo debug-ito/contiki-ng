@@ -134,7 +134,7 @@
   <plugin>
     org.contikios.cooja.plugins.ScriptRunner
     <plugin_config>
-      <scriptfile>[CONFIG_DIR]/js/04-ringbufindex.js</scriptfile>
+      <scriptfile>[CONFIG_DIR]/js/08-mpmc-ring.js</scriptfile>
       <active>true</active>
     </plugin_config>
     <width>495</width>
