@@ -7,32 +7,6 @@
 
 /*----------------------------------------------------------------------------------------*/
 
-static inline uint8_t
-elems(uint8_t put_index, uint8_t get_index, uint8_t mask)
-{
-  return (put_index - get_index) & mask;
-}
-
-static inline bool
-is_empty(uint8_t put_index, uint8_t get_index, uint8_t mask)
-{
-  return elems(put_index, get_index, mask) == 0;
-}
-
-static inline bool
-is_full(uint8_t put_index, uint8_t get_index, uint8_t mask)
-{
-  return elems(put_index, get_index, mask) == mask;
-}
-
-static inline uint8_t
-next(uint8_t i, uint8_t mask)
-{
-  return (i + 1) & mask;
-}
-
-/*----------------------------------------------------------------------------------------*/
-
 void
 mpmc_ring_init(struct mpmc_ring *ring)
 {
@@ -88,21 +62,50 @@ mpmc_ring_put_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
 int
 mpmc_ring_get_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index)
 {
-  // TODO
-  return 0;
+  /* Basically the dual of put_begin */
+  uint8_t pos;
+  uint8_t index;
+
+  assert(ring != NULL);
+  assert(got_index != NULL);
+  
+  pos = ring->get_pos;
+  memory_barrier();
+  while(1) {
+    int8_t dif;
+    index = pos & ring->mask;
+    dif = (int8_t)(ring->sequences[index]) - (int8_t)(pos + 1);
+    memory_barrier();
+    if(dif == 0) {
+      if(atomic_cas_uint8(&ring->get_pos, pos, pos + 1)) {
+        break;
+      }
+    } else if(dif < 0) {
+      return 0;
+    } else {
+      pos = ring->get_pos;
+      memory_barrier();
+    }
+  }
+  got_index->i = index;
+  got_index->_pos = pos;
+  return 1;
 }
 
 void
 mpmc_ring_get_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
 {
-  // TODO
+  assert(ring != NULL);
+  assert(index != NULL);
+
+  ring->sequences[index->i] = index->_pos + ring->mask + 1;
 }
 
 int
 mpmc_ring_elements(const struct mpmc_ring *ring)
 {
   assert(ring != NULL);
-  return elems(ring->put_pos, ring->get_pos, ring->mask);
+  return (ring->put_pos - ring->get_pos) & ring->mask;
 }
 
 int
@@ -112,6 +115,32 @@ mpmc_ring_empty(const struct mpmc_ring *ring)
 }
 
 
+//// static inline uint8_t
+//// elems(uint8_t put_index, uint8_t get_index, uint8_t mask)
+//// {
+////   return (put_index - get_index) & mask;
+//// }
+//// 
+//// static inline bool
+//// is_empty(uint8_t put_index, uint8_t get_index, uint8_t mask)
+//// {
+////   return elems(put_index, get_index, mask) == 0;
+//// }
+//// 
+//// static inline bool
+//// is_full(uint8_t put_index, uint8_t get_index, uint8_t mask)
+//// {
+////   return elems(put_index, get_index, mask) == mask;
+//// }
+//// 
+//// static inline uint8_t
+//// next(uint8_t i, uint8_t mask)
+//// {
+////   return (i + 1) & mask;
+//// }
+//// 
+//// /*----------------------------------------------------------------------------------------*/
+//// 
 //// int
 //// mpmc_ring_put_begin(struct mpmc_ring *ring)
 //// {
