@@ -105,7 +105,7 @@ int
 mpmc_ring_elements(const mpmc_ring_t *ring)
 {
   assert(ring != NULL);
-  return (ring->put_pos - ring->get_pos) & ring->mask; // TODO. fix this.
+  return (int8_t)((int8_t)ring->put_pos - (int8_t)ring->get_pos);
 }
 
 int
