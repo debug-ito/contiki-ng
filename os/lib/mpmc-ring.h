@@ -42,10 +42,10 @@
  * queue. If your platform implements sys/atomic by deferring
  * interrupts, mpmc-queue also defers interrupts.
  *
- * To define and allocate a mpmc-ring object, use MPMC_RING
- * macro. For basic usage, see
- * examples/libs/mpmc-ring-interrupt/mpmc-ring-interrupt.c,
- * especially do_get and do_put functions.
+ * To define and allocate a mpmc-ring object, use MPMC_RING macro. For
+ * basic usage, see tests/07-simulation-base/code-mpmc-ring and
+ * examples/libs/mpmc-ring-interrupt/mpmc-ring-interrupt.c, especially
+ * do_get and do_put functions.
  */
 
 #ifndef _MPMC_RING_H_
