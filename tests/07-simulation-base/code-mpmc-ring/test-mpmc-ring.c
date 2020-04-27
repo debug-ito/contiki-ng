@@ -32,16 +32,28 @@
 #include <stdio.h>
 
 #include "contiki.h"
+#include "sys/cc.h"
 #include "unit-test/unit-test.h"
 
 #include "lib/mpmc-ring.h"
 
+#define UTEST_RINGS(name,desc)                             \
+  UNIT_TEST_REGISTER(name##_2, desc ": size 2");           \
+  UNIT_TEST(name##_2) { name(utp, &ring2); }               \
+  UNIT_TEST_REGISTER(name##_32, desc ": size 32");         \
+  UNIT_TEST(name##_32) { name(utp, &ring32); }             \
+  UNIT_TEST_REGISTER(name##_128, desc ": size 128");       \
+  UNIT_TEST(name##_128) { name(utp, &ring128); }           \
+
+#define UTEST_RING_RUN(name)                    \
+  UNIT_TEST_RUN(name##_2);                      \
+  UNIT_TEST_RUN(name##_32);                     \
+  UNIT_TEST_RUN(name##_128);
+
+/*****************************************************************/
+
 PROCESS(test_process, "mpmc-ring test");
 AUTOSTART_PROCESSES(&test_process);
-
-MPMC_RING(ring2, 2);
-MPMC_RING(ring32, 32);
-MPMC_RING(ring128, 128);
 
 static void
 init_index(mpmc_ring_index_t *i)
@@ -61,265 +73,197 @@ test_print_report(const unit_test_t *utp)
   }
 }
 
-UNIT_TEST_REGISTER(test_init_get, "Init and get");
-UNIT_TEST(test_init_get)
+static void
+test_init_get(unit_test_t *utp, mpmc_ring_t *ring)
 {
   mpmc_ring_index_t index;
   int is_success;
   
   UNIT_TEST_BEGIN();
 
-  mpmc_ring_init(&ring32);
-  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 0);
-  UNIT_TEST_ASSERT(mpmc_ring_empty(&ring32));
-  is_success = mpmc_ring_get_begin(&ring32, &index);
+  mpmc_ring_init(ring);
+  UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == 0);
+  UNIT_TEST_ASSERT(mpmc_ring_empty(ring));
+  is_success = mpmc_ring_get_begin(ring, &index);
   UNIT_TEST_ASSERT(!is_success);
 
   UNIT_TEST_END();
 }
 
-UNIT_TEST_REGISTER(test_put_get, "Put and get");
-UNIT_TEST(test_put_get)
+static void
+test_put_get(unit_test_t *utp, mpmc_ring_t *ring)
 {
-  const int LOOP_NUM = 50;
+  const int GET_COUNT = mpmc_ring_size(ring) / 2;
+  const int LOOP_NUM = 300;
   mpmc_ring_index_t index;
-  int vals[32];
+  int vals[128];
   int put_val = 100;
+  int exp_val = put_val;
   int got_val;
   int i;
   int is_success;
 
   UNIT_TEST_BEGIN();
 
-  mpmc_ring_init(&ring32);
-  for(i = 0 ; i < LOOP_NUM ; i++) {
+  mpmc_ring_init(ring);
+
+  /* Put to full */
+  for(i = 0 ; i < mpmc_ring_size(ring) ; i++) {
     init_index(&index);
-    is_success = mpmc_ring_put_begin(&ring32, &index);
+    is_success = mpmc_ring_put_begin(ring, &index);
     UNIT_TEST_ASSERT(is_success);
     vals[index.i] = put_val;
-    mpmc_ring_put_commit(&ring32, &index);
+    mpmc_ring_put_commit(ring, &index);
+    put_val++;
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == i + 1);
+  }
+  init_index(&index);
+  is_success = mpmc_ring_put_begin(ring, &index);
+  UNIT_TEST_ASSERT(!is_success);
 
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 1);
-
+  /* Get half-way */
+  for(i = 0 ; i < GET_COUNT ; i++) {
     init_index(&index);
-    is_success = mpmc_ring_get_begin(&ring32, &index);
+    is_success = mpmc_ring_get_begin(ring, &index);
     UNIT_TEST_ASSERT(is_success);
     got_val = vals[index.i];
-    mpmc_ring_get_commit(&ring32, &index);
-
-    UNIT_TEST_ASSERT(got_val == put_val);
-    put_val++;
-    
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 0);
+    mpmc_ring_get_commit(ring, &index);
+    UNIT_TEST_ASSERT(got_val == exp_val);
+    exp_val++;
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == mpmc_ring_size(ring) - i - 1);
   }
+
+  /* Put and get for a while */
+  for(i = 0 ; i < LOOP_NUM ; i++) {
+    init_index(&index);
+    is_success = mpmc_ring_put_begin(ring, &index);
+    UNIT_TEST_ASSERT(is_success);
+    vals[index.i] = put_val;
+    mpmc_ring_put_commit(ring, &index);
+    put_val++;
+
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == mpmc_ring_size(ring) - GET_COUNT + 1);
+
+    init_index(&index);
+    is_success = mpmc_ring_get_begin(ring, &index);
+    UNIT_TEST_ASSERT(is_success);
+    got_val = vals[index.i];
+    mpmc_ring_get_commit(ring, &index);
+    UNIT_TEST_ASSERT(got_val == exp_val);
+    exp_val++;
+    
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == mpmc_ring_size(ring) - GET_COUNT);
+  }
+
+  /* Get to empty */
+  for(i = 0 ; i < mpmc_ring_size(ring) - GET_COUNT ; i++ ) {
+    init_index(&index);
+    is_success = mpmc_ring_get_begin(ring, &index);
+    UNIT_TEST_ASSERT(is_success);
+    got_val = vals[index.i];
+    mpmc_ring_get_commit(ring, &index);
+    UNIT_TEST_ASSERT(got_val == exp_val);
+    exp_val++;
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == mpmc_ring_size(ring) - GET_COUNT - i);
+  }
+  is_success = mpmc_ring_get_begin(ring, &index);
+  UNIT_TEST_ASSERT(!is_success);
   
   UNIT_TEST_END();
 }
 
-UNIT_TEST_REGISTER(test_drain255, "Drain at pos 255");
-UNIT_TEST(test_drain255)
+static void
+test_drain255(unit_test_t *utp, mpmc_ring_t *ring)
 {
   mpmc_ring_index_t index;
   int i;
   int is_success;
-  int vals[32];
+  int vals[128];
   int got;
   
   UNIT_TEST_BEGIN();
 
-  mpmc_ring_init(&ring32);
+  mpmc_ring_init(ring);
 
   for(i = 0 ; i < 255 ; i++) {
-    is_success = mpmc_ring_put_begin(&ring32, &index);
+    is_success = mpmc_ring_put_begin(ring, &index);
     UNIT_TEST_ASSERT(is_success);
     vals[index.i] = 77 + i;
-    mpmc_ring_put_commit(&ring32, &index);
+    mpmc_ring_put_commit(ring, &index);
 
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 1);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == 1);
 
-    is_success = mpmc_ring_get_begin(&ring32, &index);
+    is_success = mpmc_ring_get_begin(ring, &index);
     UNIT_TEST_ASSERT(is_success);
     got = vals[index.i];
-    mpmc_ring_get_commit(&ring32, &index);
+    mpmc_ring_get_commit(ring, &index);
     UNIT_TEST_ASSERT(got == 77 + i);
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 0);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == 0);
   }
 
   // this should return failure immediately (without blocking)
-  is_success = mpmc_ring_get_begin(&ring32, &index);
+  is_success = mpmc_ring_get_begin(ring, &index);
   UNIT_TEST_ASSERT(!is_success);
   
   UNIT_TEST_END();
 }
 
-UNIT_TEST_REGISTER(test_full_at_wrapped0, "Full at wrapped pos 0");
-UNIT_TEST(test_full_at_wrapped0)
+static void
+test_full_at_wrapped0(unit_test_t *utp, mpmc_ring_t *ring)
 {
   mpmc_ring_index_t index;
   int i;
   int is_success;
-  int vals[2];
+  int vals[128];
   int got;
   
   UNIT_TEST_BEGIN();
 
-  mpmc_ring_init(&ring2);
+  mpmc_ring_init(ring);
 
-  for(i = 0 ; i < 254 ; i++) {
-    is_success = mpmc_ring_put_begin(&ring2, &index);
+  for(i = 0 ; i < 256 - (int)(mpmc_ring_size(ring)) ; i++) {
+    is_success = mpmc_ring_put_begin(ring, &index);
     UNIT_TEST_ASSERT(is_success);
     vals[index.i] = 77 + i;
-    mpmc_ring_put_commit(&ring2, &index);
+    mpmc_ring_put_commit(ring, &index);
 
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring2) == 1);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == 1);
 
-    is_success = mpmc_ring_get_begin(&ring2, &index);
+    is_success = mpmc_ring_get_begin(ring, &index);
     UNIT_TEST_ASSERT(is_success);
     got = vals[index.i];
-    mpmc_ring_get_commit(&ring2, &index);
+    mpmc_ring_get_commit(ring, &index);
     UNIT_TEST_ASSERT(got == 77 + i);
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring2) == 0);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == 0);
   }
 
-  is_success = mpmc_ring_put_begin(&ring2, &index);
-  UNIT_TEST_ASSERT(is_success);
-  vals[index.i] = 888;
-  mpmc_ring_put_commit(&ring2, &index);
-
-  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring2) == 1);
-
-  is_success = mpmc_ring_put_begin(&ring2, &index);
-  UNIT_TEST_ASSERT(is_success);
-  vals[index.i] = 889;
-  mpmc_ring_put_commit(&ring2, &index);
-
-  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring2) == 2);
+  for(i = 0 ; i < (int)(mpmc_ring_size(ring)) ; i++) {
+    is_success = mpmc_ring_put_begin(ring, &index);
+    UNIT_TEST_ASSERT(is_success);
+    vals[index.i] = 888;
+    mpmc_ring_put_commit(ring, &index);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == i + 1);
+  }
 
   // this should return failure immediately (without blocking)
-  is_success = mpmc_ring_put_begin(&ring2, &index);
+  is_success = mpmc_ring_put_begin(ring, &index);
   UNIT_TEST_ASSERT(!is_success);
 
-  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring2) == 2);
+  UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == mpmc_ring_size(ring));
   
   UNIT_TEST_END();
 }
 
-UNIT_TEST_REGISTER(test_queue128, "Queue of length 128");
-UNIT_TEST(test_queue128)
-{
-  uint16_t vals[128];
-  uint16_t put_val = 231;
-  uint16_t exp_get_val = put_val;
-  int is_success;
-  int i;
-  mpmc_ring_index_t index;
-  
-  UNIT_TEST_BEGIN();
+/*****************************************************************/
 
-  mpmc_ring_init(&ring128);
-  for(i = 0 ; i < 128 ; i++) {
-    is_success = mpmc_ring_put_begin(&ring128, &index);
-    UNIT_TEST_ASSERT(is_success);
-    vals[index.i] = put_val;
-    put_val++;
-    mpmc_ring_put_commit(&ring128, &index);
-  }
-  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring128) == 128);
-  is_success = mpmc_ring_put_begin(&ring128, &index);
-  UNIT_TEST_ASSERT(!is_success);
+MPMC_RING(ring2, 2);
+MPMC_RING(ring32, 32);
+MPMC_RING(ring128, 128);
 
-  for(i = 0 ; i < 32 ; i++) {
-    is_success = mpmc_ring_get_begin(&ring128, &index);
-    UNIT_TEST_ASSERT(is_success);
-    UNIT_TEST_ASSERT(vals[index.i] == exp_get_val);
-    mpmc_ring_get_commit(&ring128, &index);
-    exp_get_val++;
-  }
-  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring128) == 96);
-
-  for(i = 0 ; i < 256 ; i++) {
-    is_success = mpmc_ring_put_begin(&ring128, &index);
-    UNIT_TEST_ASSERT(is_success);
-    vals[index.i] = put_val;
-    put_val++;
-    mpmc_ring_put_commit(&ring128, &index);
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring128) == 97);
-
-    is_success = mpmc_ring_get_begin(&ring128, &index);
-    UNIT_TEST_ASSERT(is_success);
-    UNIT_TEST_ASSERT(vals[index.i] == exp_get_val);
-    mpmc_ring_get_commit(&ring128, &index);
-    exp_get_val++;
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring128) == 96);
-  }
-
-  for(i = 0 ; i < 96 ; i++) {
-    is_success = mpmc_ring_get_begin(&ring128, &index);
-    UNIT_TEST_ASSERT(is_success);
-    UNIT_TEST_ASSERT(vals[index.i] == exp_get_val);
-    mpmc_ring_get_commit(&ring128, &index);
-    exp_get_val++;
-  }
-  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring128) == 0);
-  is_success = mpmc_ring_get_begin(&ring128, &index);
-  UNIT_TEST_ASSERT(!is_success);
-  
-  UNIT_TEST_END();
-}
-
-UNIT_TEST_REGISTER(test_elements_wrapped, "elements method for wrapped queue");
-UNIT_TEST(test_elements_wrapped)
-{
-  int i;
-  int is_success;
-  mpmc_ring_index_t index;
-  
-  UNIT_TEST_BEGIN();
-
-  mpmc_ring_init(&ring32);
-  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 0);
-
-  for(i = 0 ; i < 16 ; i++) {
-    is_success = mpmc_ring_put_begin(&ring32, &index);
-    UNIT_TEST_ASSERT(is_success);
-    mpmc_ring_put_commit(&ring32, &index);
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == i + 1);
-  }
-  for(i = 0 ; i < 59 ; i++) {
-    is_success = mpmc_ring_get_begin(&ring32, &index);
-    UNIT_TEST_ASSERT(is_success);
-    mpmc_ring_get_commit(&ring32, &index);
-    
-    is_success = mpmc_ring_put_begin(&ring32, &index);
-    UNIT_TEST_ASSERT(is_success);
-    mpmc_ring_put_commit(&ring32, &index);
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 16);
-  }
-  
-  for(i = 0 ; i < 16 ; i++) {
-    is_success = mpmc_ring_put_begin(&ring32, &index);
-    UNIT_TEST_ASSERT(is_success);
-    mpmc_ring_put_commit(&ring32, &index);
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == i + 1 + 16);
-  }
-  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 32);
-
-  for(i = 0 ; i < 59 ; i++) {
-    is_success = mpmc_ring_get_begin(&ring32, &index);
-    UNIT_TEST_ASSERT(is_success);
-    mpmc_ring_get_commit(&ring32, &index);
-    
-    is_success = mpmc_ring_put_begin(&ring32, &index);
-    UNIT_TEST_ASSERT(is_success);
-    mpmc_ring_put_commit(&ring32, &index);
-    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 32);
-  }
-  is_success = mpmc_ring_put_begin(&ring32, &index);
-  UNIT_TEST_ASSERT(!is_success);
-  
-  UNIT_TEST_END();
-}
-
+UTEST_RINGS(test_init_get, "Init and get");
+UTEST_RINGS(test_put_get, "Put and get");
+UTEST_RINGS(test_drain255, "Drain at pos 255");
+UTEST_RINGS(test_full_at_wrapped0, "Full at wrapped pos 0");
 
 PROCESS_THREAD(test_process, ev, data)
 {
@@ -327,12 +271,10 @@ PROCESS_THREAD(test_process, ev, data)
   printf("Run unit-test\n");
   printf("---\n");
 
-  UNIT_TEST_RUN(test_init_get);
-  UNIT_TEST_RUN(test_put_get);
-  UNIT_TEST_RUN(test_drain255);
-  UNIT_TEST_RUN(test_full_at_wrapped0);
-  UNIT_TEST_RUN(test_queue128);
-  UNIT_TEST_RUN(test_elements_wrapped);
+  UTEST_RING_RUN(test_init_get);
+  UTEST_RING_RUN(test_put_get);
+  UTEST_RING_RUN(test_drain255);
+  UTEST_RING_RUN(test_full_at_wrapped0);
 
   printf("=check-me= DONE\n");
   PROCESS_END();
