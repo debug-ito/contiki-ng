@@ -7,6 +7,68 @@
 
 /*----------------------------------------------------------------------------------------*/
 
+/*
+ * Implementation note: The implementation of this bounded mpmc queue
+ * is borrowed from the `heapless::mpmc` from Rust's `heapless` crate,
+ * https://docs.rs/heapless/. The Rust implementation is also based on
+ * a C++ implementation by Dmitry Vyukov,
+ * http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue.
+ *
+ * The mpmc queue maintains "sequence number" for each cell in the
+ * queue. The sequence number is maintained in such a way as:
+ *
+ * - cell[i] is empty    <=> seq[i] % size == i
+ * - cell[i] is occupied <=> seq[i] % size == i + 1
+ *
+ * The queue also maintains `get_pos` and `put_pos`. They runs in the
+ * whole domain of `uint8_t`. `(get_pos % size)` is the index of the
+ * cell to get an element from. `(put_pos % size)` is the index of the
+ * cell to put an element to. Those two position variables follow the
+ * rules below.
+ *
+ * - cell[get_pos % size] is empty    ==> seq[get_pos % size] == get_pos
+ * - cell[get_pos % size] is occupied ==> seq[get_pos % size] == get_pos + 1
+ * - cell[put_pos % size] is empty    ==> seq[put_pos % suze] == put_pos
+ * - cell[put_pos % size] is occupied ==> seq[put_pos % suze] == put_pos + 1 - size
+ *
+ * Example (1): The queue size == 8. "g(2)" means `get_pos == 2`,
+ * "p(6)" means `put_pos == 6`. Cells [2,3,4,5] are occupied, other
+ * cells are empty.
+ *
+ *     index    0   1   2   3   4   5   6   7
+ *           +---+---+---+---+---+---+---+---+
+ *     seq.  |  8|  9|  3|  4|  5|  6|  6|  7|
+ *           +---+---+---+---+---+---+---+---+
+ *                    ^               ^
+ *                    g(2)            p(6)
+ *
+ * Example (2): Cells [5,6,7,0,1] are occupied (wrapped at the
+ * boundary of 8), other cells are empty. The sequence number is used
+ * to tell if the cell is in a wrapped region or not. That is why the
+ * queue size must be <= 128.
+ *
+ *     index    0   1   2   3   4   5   6   7
+ *           +---+---+---+---+---+---+---+---+
+ *     seq.  | 41| 42| 42| 43| 44| 38| 39| 40|
+ *           +---+---+---+---+---+---+---+---+
+ *                    ^           ^
+ *                    p(42)       g(37)
+ *
+ * Example (3): All cells are occupied. The sequence number is wrapped
+ * at 256 boundary. Difference of sequence numbers is at most the size
+ * of the queue. So, if the queue size < 128, we can easily detect the
+ * wrapping at 256 boundary.
+ *
+ *     index    0   1   2   3   4   5   6   7
+ *           +---+---+---+---+---+---+---+---+
+ *     seq.  |  1|  2|  3|252|253|254|255|  0|
+ *           +---+---+---+---+---+---+---+---+
+ *                        ^
+ *                        g(251)
+ *                        p(3)
+ * 
+ */
+
 void
 mpmc_ring_init(mpmc_ring_t *ring)
 {
