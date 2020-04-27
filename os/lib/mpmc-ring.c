@@ -11,6 +11,11 @@ void
 mpmc_ring_init(mpmc_ring_t *ring)
 {
   uint8_t i;
+
+  assert(ring->mask < 64);
+  assert(ring->mask > 0);
+  assert((ring->mask & (ring->mask + 1)) == 0);
+  
   ring->put_pos = 0;
   ring->get_pos = 0;
   for(i = 0 ; i <= ring->mask ; i++) {
@@ -106,16 +111,23 @@ mpmc_ring_elements(const mpmc_ring_t *ring)
 {
   assert(ring != NULL);
   int8_t dif = ((int8_t)ring->put_pos - (int8_t)ring->get_pos);
-  if(dif >= 0) {
-    return (int)dif;
-  } else {
-    /* Corner case for size = 128, elements = 128. */
-    int ret = (int)dif;
-    while(ret <= 0) {
-      ret += ring->mask + 1;
-    }
-    return ret;
-  }
+  return dif;
+
+  /*
+   * The code below is necessary if we allow mpmc_ring of size
+   * 128. The else clause is especially for the case where size == 128
+   * && elements = 128.
+   *
+   * if(dif >= 0) {
+   *   return (int)dif;
+   * } else {
+   *   int ret = (int)dif;
+   *   while(ret <= 0) {
+   *     ret += ring->mask + 1;
+   *   }
+   *   return ret;
+   * }
+   */
 }
 
 int
