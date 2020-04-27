@@ -139,7 +139,7 @@ void mpmc_ring_put_commit(mpmc_ring_t *ring, const mpmc_ring_index_t *index);
  * \param ring The mpmc_ring object
  *
  * \param got_index (output) The index that the caller should use to
- * put an element.
+ * get an element.
  *
  * \retval 0 Failure. The queue is empty. got_index is not modified.
  * \retval 1 Success. got_index is modified.
