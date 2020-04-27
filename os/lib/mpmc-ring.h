@@ -63,12 +63,12 @@
  * Do not declare and define struct mpmc_ring directly. Use
  * MPMC_RING macro instead.
  */
-struct mpmc_ring {
+typedef struct mpmc_ring {
   uint8_t put_pos;
   uint8_t get_pos;
   uint8_t * const sequences;
   const uint8_t mask;
-};
+} mpmc_ring_t;
 
 /**
  * The array index managed by mpmc_ring.
@@ -91,19 +91,19 @@ typedef struct mpmc_ring_index {
 /**
  * Declare and define a mpmc_ring.
  *
- * \param name Variable name of the struct mpmc_ring.
+ * \param name Variable name of the mpmc_ring_t.
  *
  * \param size Size of the array that keeps the queue elements. Must
  * be power of 2, and 0 < size <= 64.
  */
 #define MPMC_RING(name, size)                                           \
   static uint8_t CC_CONCAT(name,_sequences)[size];                      \
-  static struct mpmc_ring name = { 0, 0, CC_CONCAT(name,_sequences), (size) - 1 };
+  static mpmc_ring_t name = { 0, 0, CC_CONCAT(name,_sequences), (size) - 1 };
 
 /**
  * Initialize the mpmc_ring.
  */
-void mpmc_ring_init(struct mpmc_ring *ring);
+void mpmc_ring_init(mpmc_ring_t *ring);
 
 /**
  * Start putting an element to the queue. Every call to
@@ -118,7 +118,7 @@ void mpmc_ring_init(struct mpmc_ring *ring);
  * \retval 0 Failure. The queue is full. got_index is not modified.
  * \retval 1 Success. got_index is modified.
  */
-int mpmc_ring_put_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index);
+int mpmc_ring_put_begin(mpmc_ring_t *ring, mpmc_ring_index_t *got_index);
 
 /**
  * Finish putting an element to the queue.
@@ -129,7 +129,7 @@ int mpmc_ring_put_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index);
  * mpmc_ring_put_begin.
  *
  */
-void mpmc_ring_put_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index);
+void mpmc_ring_put_commit(mpmc_ring_t *ring, const mpmc_ring_index_t *index);
 
 /**
  * Start getting an element from the queue. Every call to
@@ -144,7 +144,7 @@ void mpmc_ring_put_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index
  * \retval 0 Failure. The queue is empty. got_index is not modified.
  * \retval 1 Success. got_index is modified.
  */
-int mpmc_ring_get_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index);
+int mpmc_ring_get_begin(mpmc_ring_t *ring, mpmc_ring_index_t *got_index);
 
 /**
  * Finish getting an element to the queue.
@@ -155,16 +155,21 @@ int mpmc_ring_get_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index);
  * mpmc_ring_get_begin.
  *
  */
-void mpmc_ring_get_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index);
+void mpmc_ring_get_commit(mpmc_ring_t *ring, const mpmc_ring_index_t *index);
 
 /**
  * \return Number of elements currently in the queue.
  */
-int mpmc_ring_elements(const struct mpmc_ring *ring);
+int mpmc_ring_elements(const mpmc_ring_t *ring);
 
 /**
  * \return Non-zero if the queue is empty. Zero otherwise.
  */
-int mpmc_ring_empty(const struct mpmc_ring *ring);
+int mpmc_ring_empty(const mpmc_ring_t *ring);
+
+/**
+ * \return Number of elements that the queue can keep.
+ */
+uint8_t mpmc_ring_size(const mpmc_ring_t *ring);
 
 #endif /* _MPMC_RING_H_ */

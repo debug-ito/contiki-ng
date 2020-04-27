@@ -8,7 +8,7 @@
 /*----------------------------------------------------------------------------------------*/
 
 void
-mpmc_ring_init(struct mpmc_ring *ring)
+mpmc_ring_init(mpmc_ring_t *ring)
 {
   uint8_t i;
   ring->put_pos = 0;
@@ -19,7 +19,7 @@ mpmc_ring_init(struct mpmc_ring *ring)
 }
 
 int
-mpmc_ring_put_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index)
+mpmc_ring_put_begin(mpmc_ring_t *ring, mpmc_ring_index_t *got_index)
 {
   uint8_t pos;
   uint8_t index;
@@ -51,7 +51,7 @@ mpmc_ring_put_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index)
 }
 
 void
-mpmc_ring_put_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
+mpmc_ring_put_commit(mpmc_ring_t *ring, const mpmc_ring_index_t *index)
 {
   assert(ring != NULL);
   assert(index != NULL);
@@ -60,7 +60,7 @@ mpmc_ring_put_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
 }
 
 int
-mpmc_ring_get_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index)
+mpmc_ring_get_begin(mpmc_ring_t *ring, mpmc_ring_index_t *got_index)
 {
   /* Basically the dual of put_begin */
   uint8_t pos;
@@ -93,7 +93,7 @@ mpmc_ring_get_begin(struct mpmc_ring *ring, mpmc_ring_index_t *got_index)
 }
 
 void
-mpmc_ring_get_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
+mpmc_ring_get_commit(mpmc_ring_t *ring, const mpmc_ring_index_t *index)
 {
   assert(ring != NULL);
   assert(index != NULL);
@@ -102,18 +102,24 @@ mpmc_ring_get_commit(struct mpmc_ring *ring, const mpmc_ring_index_t *index)
 }
 
 int
-mpmc_ring_elements(const struct mpmc_ring *ring)
+mpmc_ring_elements(const mpmc_ring_t *ring)
 {
   assert(ring != NULL);
-  return (ring->put_pos - ring->get_pos) & ring->mask;
+  return (ring->put_pos - ring->get_pos) & ring->mask; // TODO. fix this.
 }
 
 int
-mpmc_ring_empty(const struct mpmc_ring *ring)
+mpmc_ring_empty(const mpmc_ring_t *ring)
 {
   return mpmc_ring_elements(ring) == 0;
 }
 
+uint8_t
+mpmc_ring_size(const mpmc_ring_t *ring)
+{
+  assert(ring != NULL);
+  return ring->mask + 1;
+}
 
 //// static inline uint8_t
 //// elems(uint8_t put_index, uint8_t get_index, uint8_t mask)
