@@ -105,7 +105,17 @@ int
 mpmc_ring_elements(const mpmc_ring_t *ring)
 {
   assert(ring != NULL);
-  return (int8_t)((int8_t)ring->put_pos - (int8_t)ring->get_pos);
+  int8_t dif = ((int8_t)ring->put_pos - (int8_t)ring->get_pos);
+  if(dif >= 0) {
+    return (int)dif;
+  } else {
+    /* Corner case for size = 128, elements = 128. */
+    int ret = (int)dif;
+    while(ret <= 0) {
+      ret += ring->mask + 1;
+    }
+    return ret;
+  }
 }
 
 int
