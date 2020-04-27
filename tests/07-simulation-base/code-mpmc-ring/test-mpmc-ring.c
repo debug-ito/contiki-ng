@@ -42,13 +42,13 @@
   UNIT_TEST(name##_2) { name(utp, &ring2); }               \
   UNIT_TEST_REGISTER(name##_32, desc ": size 32");         \
   UNIT_TEST(name##_32) { name(utp, &ring32); }             \
-  UNIT_TEST_REGISTER(name##_128, desc ": size 128");       \
-  UNIT_TEST(name##_128) { name(utp, &ring128); }           \
+  UNIT_TEST_REGISTER(name##_64, desc ": size 64");       \
+  UNIT_TEST(name##_64) { name(utp, &ring64); }           \
 
 #define UTEST_RING_RUN(name)                    \
   UNIT_TEST_RUN(name##_2);                      \
   UNIT_TEST_RUN(name##_32);                     \
-  UNIT_TEST_RUN(name##_128);
+  UNIT_TEST_RUN(name##_64);
 
 /*****************************************************************/
 
@@ -268,7 +268,7 @@ test_full_at_wrapped0(unit_test_t *utp, mpmc_ring_t *ring)
 
 MPMC_RING(ring2, 2);
 MPMC_RING(ring32, 32);
-MPMC_RING(ring128, 128);
+MPMC_RING(ring64, 64);
 
 UTEST_RINGS(test_init_get, "Init and get");
 UTEST_RINGS(test_put_get, "Put and get");
