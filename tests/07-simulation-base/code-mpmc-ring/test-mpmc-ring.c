@@ -142,6 +142,8 @@ test_put_get(unit_test_t *utp, mpmc_ring_t *ring)
     mpmc_ring_put_commit(ring, &index);
     put_val++;
 
+    // printf("Loop = %d, elems = %d, get_pos = %u, put_pos = %u\n",
+    //        i, mpmc_ring_elements(ring), ring->get_pos, ring->put_pos);
     UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == mpmc_ring_size(ring) - GET_COUNT + 1);
 
     init_index(&index);
@@ -164,7 +166,10 @@ test_put_get(unit_test_t *utp, mpmc_ring_t *ring)
     mpmc_ring_get_commit(ring, &index);
     UNIT_TEST_ASSERT(got_val == exp_val);
     exp_val++;
-    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == mpmc_ring_size(ring) - GET_COUNT - i);
+
+    // printf("Loop = %d, elems = %d, get_pos = %u, put_pos = %u\n",
+    //        i, mpmc_ring_elements(ring), ring->get_pos, ring->put_pos);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(ring) == mpmc_ring_size(ring) - GET_COUNT - i - 1);
   }
   is_success = mpmc_ring_get_begin(ring, &index);
   UNIT_TEST_ASSERT(!is_success);
