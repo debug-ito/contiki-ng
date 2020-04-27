@@ -267,6 +267,60 @@ UNIT_TEST(test_queue128)
   UNIT_TEST_END();
 }
 
+UNIT_TEST_REGISTER(test_elements_wrapped, "elements method for wrapped queue");
+UNIT_TEST(test_elements_wrapped)
+{
+  int i;
+  int is_success;
+  mpmc_ring_index_t index;
+  
+  UNIT_TEST_BEGIN();
+
+  mpmc_ring_init(&ring32);
+  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 0);
+
+  for(i = 0 ; i < 16 ; i++) {
+    is_success = mpmc_ring_put_begin(&ring32, &index);
+    UNIT_TEST_ASSERT(is_success);
+    mpmc_ring_put_commit(&ring32, &index);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == i + 1);
+  }
+  for(i = 0 ; i < 59 ; i++) {
+    is_success = mpmc_ring_get_begin(&ring32, &index);
+    UNIT_TEST_ASSERT(is_success);
+    mpmc_ring_get_commit(&ring32, &index);
+    
+    is_success = mpmc_ring_put_begin(&ring32, &index);
+    UNIT_TEST_ASSERT(is_success);
+    mpmc_ring_put_commit(&ring32, &index);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 16);
+  }
+  
+  for(i = 0 ; i < 16 ; i++) {
+    is_success = mpmc_ring_put_begin(&ring32, &index);
+    UNIT_TEST_ASSERT(is_success);
+    mpmc_ring_put_commit(&ring32, &index);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == i + 1 + 16);
+  }
+  UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 32);
+
+  for(i = 0 ; i < 59 ; i++) {
+    is_success = mpmc_ring_get_begin(&ring32, &index);
+    UNIT_TEST_ASSERT(is_success);
+    mpmc_ring_get_commit(&ring32, &index);
+    
+    is_success = mpmc_ring_put_begin(&ring32, &index);
+    UNIT_TEST_ASSERT(is_success);
+    mpmc_ring_put_commit(&ring32, &index);
+    UNIT_TEST_ASSERT(mpmc_ring_elements(&ring32) == 32);
+  }
+  is_success = mpmc_ring_put_begin(&ring32, &index);
+  UNIT_TEST_ASSERT(!is_success);
+  
+  UNIT_TEST_END();
+}
+
+
 PROCESS_THREAD(test_process, ev, data)
 {
   PROCESS_BEGIN();
@@ -278,6 +332,7 @@ PROCESS_THREAD(test_process, ev, data)
   UNIT_TEST_RUN(test_drain255);
   UNIT_TEST_RUN(test_full_at_wrapped0);
   UNIT_TEST_RUN(test_queue128);
+  UNIT_TEST_RUN(test_elements_wrapped);
 
   printf("=check-me= DONE\n");
   PROCESS_END();
