@@ -26,7 +26,7 @@
 /*
  * Length of the message queue.
  */
-#define QUEUE_LEN 256
+#define QUEUE_LEN 64
 
 /*
  * Number of get or put trials done in a single call to the
@@ -74,21 +74,6 @@
  * queue operations happens.
  */
 #define MOVE_WAIT_COUNT 100
-
-/*
- * If set, it dumps internal of mpmc_ring when the test finishes.
- */
-#define DEBUG_DUMP 1
-
-#if DEBUG_DUMP
-#define MPMC_RING_CONF_DEBUG_TRACE_SIZE 32
-#endif /* DEBUG_DUMP */
-
-/*
- * Deliberately add delays at the starts of put_begin and get_begin.
- */
-#define MPMC_RING_CONF_DEBUG_DELAY 8000
-#define MPMC_RING_CONF_DEBUG_DELAY_POS ((1<<1) | (1<<7))
 
 /*
  * If non-zero, use ringbufindex instead of mpmc-ring for queue

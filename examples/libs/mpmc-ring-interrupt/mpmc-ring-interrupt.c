@@ -66,30 +66,53 @@
 
 #if USE_RINGBUFINDEX
 typedef struct ringbufindex the_queue_t;
+typedef uint8_t the_index_t;
 #else /* USE_RINGBUFINDEX */
-typedef struct mpmc_ring the_queue_t;
+typedef mpmc_ring_t the_queue_t;
+typedef mpmc_ring_index_t the_index_t;
 #endif /* USE_RINGBUFINDEX */
 
 static inline void the_queue_init(the_queue_t *q, int s);
-static inline int the_queue_put_begin(the_queue_t *q);
-static inline int the_queue_put_commit(the_queue_t *q, uint8_t i);
-static inline int the_queue_get_begin(the_queue_t *q);
-static inline int the_queue_get_commit(the_queue_t *q, uint8_t i);
+static inline int the_queue_put_begin(the_queue_t *q, the_index_t *got);
+static inline int the_queue_put_commit(the_queue_t *q, const the_index_t *i);
+static inline int the_queue_get_begin(the_queue_t *q, the_index_t *got);
+static inline int the_queue_get_commit(the_queue_t *q, const the_index_t *i);
+static inline int the_queue_index_get(const the_index_t *i);
 static inline int the_queue_elements(the_queue_t *q);
 
 #if USE_RINGBUFINDEX
 static inline void the_queue_init(the_queue_t *q, int s) { ringbufindex_init(q,(uint8_t)s); }
-static inline int the_queue_put_begin(the_queue_t *q) { return ringbufindex_peek_put(q); }
-static inline int the_queue_put_commit(the_queue_t *q, uint8_t i) { return ringbufindex_put(q); }
-static inline int the_queue_get_begin(the_queue_t *q) { return ringbufindex_peek_get(q); }    
-static inline int the_queue_get_commit(the_queue_t *q, uint8_t i) { return (ringbufindex_get(q) >= 0); }
+static inline int the_queue_put_begin(the_queue_t *q, the_index_t *got)
+{
+  int ret = ringbufindex_peek_put(q);
+  if(ret < 0) {
+    return 0;
+  } else {
+    *got = ret;
+    return 1;
+  }
+}
+static inline int the_queue_put_commit(the_queue_t *q, const the_index_t *i) { return ringbufindex_put(q); }
+static inline int the_queue_get_begin(the_queue_t *q, the_index_t *got)
+{
+  int ret = ringbufindex_peek_get(q);
+  if(ret < 0) {
+    return 0;
+  } else {
+    *got = ret;
+    return 1;
+  }
+}
+static inline int the_queue_get_commit(the_queue_t *q, const the_index_t *i) { return (ringbufindex_get(q) >= 0); }
+static inline int the_queue_index_get(const the_index_t *i) { return *i; }
 static inline int the_queue_elements(the_queue_t *q) { return ringbufindex_elements(q); }
 #else /* USE_RINGBUFINDEX */
 static inline void the_queue_init(the_queue_t *q, int s) { mpmc_ring_init(q); }
-static inline int the_queue_put_begin(the_queue_t *q) { return mpmc_ring_put_begin(q); }
-static inline int the_queue_put_commit(the_queue_t *q, uint8_t i) { mpmc_ring_put_commit(q,i); return 1; }
-static inline int the_queue_get_begin(the_queue_t *q) { return mpmc_ring_get_begin(q); }
-static inline int the_queue_get_commit(the_queue_t *q, uint8_t i) { mpmc_ring_get_commit(q,i); return 1; }
+static inline int the_queue_put_begin(the_queue_t *q, the_index_t *got) { return mpmc_ring_put_begin(q,got); }
+static inline int the_queue_put_commit(the_queue_t *q, const the_index_t *i) { mpmc_ring_put_commit(q,i); return 1; }
+static inline int the_queue_get_begin(the_queue_t *q, the_index_t *got) { return mpmc_ring_get_begin(q,got); }
+static inline int the_queue_get_commit(the_queue_t *q, const the_index_t *i) { mpmc_ring_get_commit(q,i); return 1; }
+static inline int the_queue_index_get(const the_index_t *i) { return i->i; }
 static inline int the_queue_elements(the_queue_t *q) { return mpmc_ring_elements(q); }
 #endif /* USE_RINGBUFINDEX */
 
@@ -117,81 +140,6 @@ void msg_move(msg_t *dest, const msg_t *source)
     }
   }
 }
-
-/*---------------------------------------------------------------------------*/
-#if !USE_RINGBUFINDEX && DEBUG_DUMP
-static void
-dump_mpmc_ring(const struct mpmc_ring *ring)
-{
-  /*
-   * This function is for debug. That's why it accesses internal of
-   * mpmc_ring.
-   */
-#define LINE_WIDTH 32
-
-  static uint8_t dump_state[QUEUE_LEN];
-  int line_i, col_i;
-  int contain_unexpected_state = 0;
-  int_master_status_t istatus;
-  mpmc_ring_index_t put_ptr, get_ptr;
-  
-  istatus = critical_enter();
-  memcpy(dump_state, ring->state, QUEUE_LEN);
-  put_ptr = ring->put_ptr;
-  get_ptr = ring->get_ptr;
-  critical_exit(istatus);
-
-  for(line_i = 0 ; line_i < QUEUE_LEN / LINE_WIDTH ; line_i++) {
-    for(col_i = 0 ; col_i < LINE_WIDTH ; col_i++) {
-      char s;
-      switch(dump_state[line_i * LINE_WIDTH + col_i]) {
-        case 0: s = 'E'; break;
-        case 1: s = 'P'; break;
-        case 2: s = 'G'; break;
-        case 3: s = 'O'; break;
-        default:
-          s = '?';
-          contain_unexpected_state = 1;
-      }
-      if(col_i == 0) {
-        LOG_INFO("%c", s);
-      } else {
-        LOG_INFO_("%c", s);
-      }
-      if((col_i + 1) % 4 == 0) {
-        LOG_INFO_(" ");
-      }
-    }
-    LOG_INFO_("\n");
-    for(col_i = 0 ; col_i < LINE_WIDTH ; col_i++) {
-      int index = line_i * LINE_WIDTH + col_i;
-      char symbol;
-      if(index == get_ptr && index == put_ptr) {
-        symbol = 'b';
-      } else if(index == get_ptr) {
-        symbol = 'g';
-      } else if(index == put_ptr) {
-        symbol = 'p';
-      } else {
-        symbol = ' ';
-      }
-      if(col_i == 0) {
-        LOG_INFO("%c", symbol);
-      } else {
-        LOG_INFO_("%c", symbol);
-      }
-      if((col_i + 1) % 4 == 0) {
-        LOG_INFO_(" ");
-      }
-    }
-    LOG_INFO_("\n");
-  }
-  if(contain_unexpected_state) {
-    LOG_ERR("There is some unexpected state in the state array.\n");
-  }
-}
-#endif /* USE_RINGBUFINDEX */
-
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -368,15 +316,15 @@ static volatile struct stream_control sc_interrupt_get;
 static inline
 int do_put(struct message_gen *gen)
 {
-  int i = the_queue_put_begin(&queue_r);
+  the_index_t i;
   msg_t next;
-  if(i < 0) {
+  if(!the_queue_put_begin(&queue_r, &i)) {
     gen->count_queue_full++;
     return 0;
   }
   next = message_gen_next(gen);
-  msg_move(&queue[i], &next);
-  return the_queue_put_commit(&queue_r, i);
+  msg_move(&queue[the_queue_index_get(&i)], &next);
+  return the_queue_put_commit(&queue_r, &i);
 }
 
 /**
@@ -389,13 +337,13 @@ int do_put(struct message_gen *gen)
 static inline
 int do_get(struct message_store *store)
 {
-  int i = the_queue_get_begin(&queue_r);
-  if(i < 0) {
+  the_index_t i;
+  if(!the_queue_get_begin(&queue_r, &i)) {
     store->count_queue_drain++;
     return 0;
   }
-  message_store_input(store, &queue[i]);
-  return the_queue_get_commit(&queue_r, i);
+  message_store_input(store, &queue[the_queue_index_get(&i)]);
+  return the_queue_get_commit(&queue_r, &i);
 }
 /*---------------------------------------------------------------------------*/
 
@@ -525,42 +473,6 @@ check_result(void)
   LOG_INFO("Put duration: normal:%ld interrupt:%ld\n", (int32_t)stream_control_duration(&sc_normal_put), (int32_t)stream_control_duration(&sc_interrupt_put));
   return is_ok;
 }
-
-static void
-check_intermediate_integrity(void)
-{
-#if !USE_RINGBUFINDEX
-  int elems = 0;
-  int count_occupied = 0;
-  int count_getting = 0;
-  int count_putting = 0;
-  int failed = 0;
-  int_master_status_t st;
-  
-  st = critical_enter();
-  elems = mpmc_ring_elements(&queue_r);
-  mpmc_ring_debug_state_count(&queue_r, NULL, &count_putting, &count_getting, &count_occupied);
-  critical_exit(st);
-
-  if(count_putting != 0) {
-    failed = 1;
-    LOG_ERR("Intermediate: PUTTING was %d (should be 0)\n", count_putting);
-  }
-  if(count_getting != 0) {
-    failed = 1;
-    LOG_ERR("Intermediate: GETTING was %d (should be 0)\n", count_getting);
-  }
-  if(count_occupied != elems) {
-    failed = 1;
-    LOG_ERR("Intermediate: OCCUPIED was %d (should be %d)\n", count_occupied, elems);
-  }
-#if DEBUG_DUMP
-  if(failed) {
-    dump_mpmc_ring(&queue_r);
-  }
-#endif /* DEBUG_DUMP */
-#endif /* !USE_RINGBUFINDEX */
-}
 /*---------------------------------------------------------------------------*/
 PROCESS(normal_put, "normal PUT process");
 PROCESS_THREAD(normal_put, ev, data)
@@ -571,7 +483,7 @@ PROCESS_THREAD(normal_put, ev, data)
     if(normal_put_gen.generated_num < NORMAL_PUT_NUM) {
       if(stream_control_try(&sc_normal_put) && do_put(&normal_put_gen)) {
         LOG_DBG("Normal put\n");
-        check_intermediate_integrity();
+        // check_intermediate_integrity();
       }
       if(normal_put_gen.generated_num == NORMAL_PUT_NUM) {
         stream_control_finish(&sc_normal_put);
@@ -594,7 +506,7 @@ PROCESS_THREAD(normal_get, ev, data)
     if(normal_store.current_num < NORMAL_GET_NUM) {
       if(stream_control_try(&sc_normal_get) && do_get(&normal_store)) {
         LOG_DBG("Normal get\n");
-        check_intermediate_integrity();
+        // check_intermediate_integrity();
       }
       if(normal_store.current_num == NORMAL_GET_NUM) {
         stream_control_finish(&sc_normal_get);
@@ -630,7 +542,6 @@ PROCESS_THREAD(main_process, ev, data)
     LOG_INFO("NORMAL_GET_NUM = %d\n", NORMAL_GET_NUM);
     LOG_INFO("INTERRUPT_GET_NUM = %d\n", INTERRUPT_GET_NUM);
     LOG_INFO("INTERRUPT_RTIMER_INTERVAL = %ld\n", INTERRUPT_RTIMER_INTERVAL);
-    LOG_INFO("MPMC_RING_CONF_DEBUG_DELAY = %d\n", MPMC_RING_CONF_DEBUG_DELAY);
     LOG_INFO("USE_RINGBUFINDEX = %d\n", USE_RINGBUFINDEX);
     LOG_INFO("TEST_TIMEOUT = %d\n", TEST_TIMEOUT);
     break_with_fail = 0;
@@ -663,17 +574,9 @@ PROCESS_THREAD(main_process, ev, data)
       }
     }
     if(!check_result() || break_with_fail) {
-#if !USE_RINGBUFINDEX && DEBUG_DUMP
-      dump_mpmc_ring(&queue_r);
-      mpmc_ring_print_debug_trace(&queue_r);
-#endif /* !USE_RINGBUFINDEX && DEBUG_DUMP */
       LOG_INFO("Now resetting..\n");
       watchdog_reboot();
     }
-#if !USE_RINGBUFINDEX && DEBUG_DUMP
-    dump_mpmc_ring(&queue_r);
-    mpmc_ring_print_debug_trace(&queue_r);
-#endif /* DEBUG_DUMP */
     LOG_INFO("Stopping the test.\n");
     stream_control_finish(&sc_normal_put);
     stream_control_finish(&sc_normal_get);
