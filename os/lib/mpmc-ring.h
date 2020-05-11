@@ -62,6 +62,8 @@
  *
  * Do not declare and define struct mpmc_ring directly. Use
  * MPMC_RING macro instead.
+ *
+ * All fields are private. Users should not read or write them.
  */
 typedef struct mpmc_ring {
   uint8_t put_pos;
@@ -76,7 +78,7 @@ typedef struct mpmc_ring {
 typedef struct mpmc_ring_index {
   /**
    * The index for the user-defined array that keeps the actual data
-   * structures.
+   * structures. Users can read this field.
    */
   uint8_t i;
 
