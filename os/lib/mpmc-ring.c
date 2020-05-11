@@ -67,6 +67,50 @@
  *                        g(251)
  *                        p(3)
  * 
+ *
+ * CAVEAT: In very limited scenarios, internal of mpmc-ring can get
+ * broken. For example,
+ *
+ * 1. Start `put_begin` on a non-full queue, such as the following.
+ *
+ *     index    0   1   2   3   4   5   6   7
+ *           +---+---+---+---+---+---+---+---+
+ *     seq.  | 48| 49| 43| 44| 45| 45| 46| 47|
+ *           +---+---+---+---+---+---+---+---+
+ *                      ^           ^
+ *                      g(42)       p(45)
+ *
+ * 2. An interrupt occurs during processing the `put_begin`, just
+ * after it calculates the `dif` (which is 0) but before executing
+ * `atomic_cas_uint8`.
+ *
+ * 3. In the interrupt, it executes (256 * N) put operations and
+ * some get operations (N is a natural number). In the end, the
+ * queue becomes full with the same `put_pos` as it had before the
+ * interrupt.
+ *
+ *     index    0   1   2   3   4   5   6   7
+ *           +---+---+---+---+---+---+---+---+
+ *     seq.  | 41| 42| 43| 44| 45| 38| 39| 40|
+ *           +---+---+---+---+---+---+---+---+
+ *                                  ^
+ *                                  g(37)
+ *                                  p(45)
+ *
+ * 4. The original `put_begin` resumes. Because `dif == 0`, it runs
+ * `atomic_cas_uint8`. Because the `put_pos` remains the same, it
+ * increments `put_pos`. However, because the queue is actually
+ * full, this is incorrect. This leads to loss of data stored in
+ * cell[5] in the above example.
+ *
+ *
+ * The above problem occurs when (1) an interrupt occurs inside
+ * `put_begin`, before executing `atomic_cas_uint8`, and (2) the
+ * interrupt changes the queue state from non-full to full, and (3)
+ * the interrupt runs (256 * N) put operations so that `put_pos`
+ * remains the same. The dual is also true for `get_begin` and
+ * non-empty queue. Anyway, I think the above condition is so rare.
+ *
  */
 
 void
